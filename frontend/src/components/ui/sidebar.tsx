@@ -3,12 +3,14 @@ import { Slot } from "@radix-ui/react-slot";
 import { VariantProps, cva } from "class-variance-authority";
 import { PanelLeft } from "lucide-react";
 
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -157,13 +159,19 @@ const Sidebar = React.forwardRef<
           data-sidebar="sidebar"
           data-mobile="true"
           className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-            } as React.CSSProperties
-          }
+          style={{
+            "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
+          }}
           side={side}
         >
+          {/* WAJIB ADA UNTUK RADIX — TAPI DISAMARKAN */}
+          <VisuallyHidden>
+            <SheetHeader>
+              <SheetTitle>Menu</SheetTitle>
+              <SheetDescription>Sidebar menu drawer</SheetDescription>
+            </SheetHeader>
+          </VisuallyHidden>
+
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>

@@ -51,6 +51,8 @@ export const AppSidebar: React.FC = () => {
   const isCollapsed = state === "collapsed";
   const isOpen = state === "expanded";
 
+  const realCollapsed = isMobile ? false : isCollapsed;
+
   const menuItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 
@@ -107,18 +109,17 @@ export const AppSidebar: React.FC = () => {
         className={`
           bg-sidebar text-gray-300 border-r border-white/10
           transition-all duration-300 ease-in-out
-          ${isCollapsed ? "w-20" : "w-64"}
-          ${isMobile 
-            ? `fixed h-full z-40 transform ${isOpen ? "translate-x-0" : "-translate-x-full"}`
-            : ""
-          }
+
+          ${isMobile ? "fixed h-full z-40 transform" : "md:block"}
+          ${isMobile ? (isOpen ? "translate-x-0" : "-translate-x-full") : ""}
+          ${!isMobile ? (realCollapsed ? "md:w-20" : "md:w-64") : ""}
         `}
       >
         <SidebarContent className="py-4">
           <SidebarGroup>
             {/* === HEADER DENGAN TOGGLE BUTTON === */}
-            <div className={`flex items-center px-4 mb-6 ${isCollapsed ? "justify-center" : "justify-between"}`}>
-              {!isCollapsed && (
+            <div className={`flex items-center px-4 mb-6 ${realCollapsed ? "justify-center" : "justify-between"}`}>
+              {!realCollapsed && (
                 <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider text-gray-400">
                   {isSuperAdmin ? "Menu Superadmin" : "Menu Admin"}
                 </SidebarGroupLabel>
@@ -129,9 +130,9 @@ export const AppSidebar: React.FC = () => {
                 <button
                   onClick={toggleSidebar}
                   className="p-1.5 rounded-md hover:bg-white/10 text-gray-400 hover:text-white transition-all duration-150"
-                  aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  aria-label={realCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                 >
-                  {isCollapsed ? (
+                  {realCollapsed ? (
                     <ChevronRight size={18} strokeWidth={1.5} />
                   ) : (
                     <ChevronLeft size={18} strokeWidth={1.5} />
@@ -141,7 +142,7 @@ export const AppSidebar: React.FC = () => {
             </div>
 
             <SidebarGroupContent>
-              <SidebarMenu className={`space-y-0.5 ${isCollapsed ? "px-0" : "px-2"}`}>
+              <SidebarMenu className={`space-y-0.5 ${realCollapsed ? "px-0" : "px-2"}`}>
                 {menuItems.map((item) => {
                   const isActive = location.pathname === item.url;
                   return (
@@ -151,14 +152,14 @@ export const AppSidebar: React.FC = () => {
                           to={item.url}
                           onClick={(e) => {
                             // Cegah sidebar melebar saat collapsed
-                            if (isCollapsed && !isMobile) {
+                            if (realCollapsed && !isMobile) {
                               e.stopPropagation();
                             }
                           }}
                           className={`
                             relative rounded-md transition-all duration-150 group
                             flex items-center
-                            ${isCollapsed 
+                            ${realCollapsed 
                                     ? "justify-center w-full py-2.5 mx-auto" 
                                     : "gap-3 px-3 py-2.5"
                                   }
@@ -169,7 +170,7 @@ export const AppSidebar: React.FC = () => {
                           `}
                         >
                           {/* Active indicator bar */}
-                          {isActive && !isCollapsed && (
+                          {isActive && !realCollapsed && (
                             <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r bg-white"></span>
                           )}
 
@@ -178,14 +179,14 @@ export const AppSidebar: React.FC = () => {
                             className="w-[18px] h-[18px] transition-all duration-150 flex-shrink-0"
                           />
                           {/* Label */}
-                          {!isCollapsed && (
+                          {!realCollapsed && (
                             <span className="text-sm font-medium transition-all duration-150">
                               {item.title}
                             </span>
                           )}
 
                           {/* Tooltip untuk collapsed state */}
-                          {isCollapsed && !isMobile && (
+                          {realCollapsed && !isMobile && (
                             <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap shadow-lg pointer-events-none z-50 border border-white/10">
                               {item.title}
                               {/* Tooltip arrow */}

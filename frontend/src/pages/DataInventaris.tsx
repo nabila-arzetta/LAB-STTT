@@ -8,7 +8,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { listInventaris, type StokInventaris } from "@/services/inventaris.service";
 import { listLabs, type LabDTO } from "@/services/lab.service";
 
-// ====================== Types ======================
 type Column<T> = {
   key: keyof T | string;
   header: string;
@@ -16,7 +15,6 @@ type Column<T> = {
   render?: (row: T) => ReactNode;
 };
 
-// ====================== Component ======================
 export default function DataInventaris() {
   const { isAdmin, getUserLab } = useAuth();
 
@@ -105,13 +103,7 @@ export default function DataInventaris() {
   const columnsAdapter = columns.map((c) => c) as unknown as { key: string; header: string; className?: string; render?: (row: unknown) => ReactNode }[];
 
   function getStockBadge(stok: number) {
-    if (stok < 0)
-      return <Badge variant="destructive" className="bg-destructive/20 text-destructive">{stok}</Badge>;
-    if (stok <= 5)
-      return <div className="flex items-center gap-1"><AlertTriangle className="w-3 h-3 text-destructive" /><Badge variant="destructive">{stok}</Badge></div>;
-    if (stok <= 20)
-      return <Badge variant="secondary" className="bg-warning/20 text-warning border-warning/30">{stok}</Badge>;
-    return <Badge variant="outline">{stok}</Badge>;
+    return <span>{stok}</span>;
   }
 
   const selectedLab = labs.find(l =>

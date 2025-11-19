@@ -73,14 +73,30 @@ const MasterLab: React.FC = () => {
 
   /** ==== Filter Search ==== */
   const filteredLab = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return labs;
-    return labs.filter(l =>
+  const q = searchTerm.trim().toLowerCase();
+  let result = labs;
+
+  if (q) {
+    result = labs.filter(l =>
       (l.nama_lab ?? '').toLowerCase().includes(q) ||
       (l.lokasi ?? '').toLowerCase().includes(q) ||
       (l.kode_bagian ?? '').toLowerCase().includes(q)
     );
-  }, [labs, searchTerm]);
+  }
+
+  if (!isSuperAdmin) {
+    result = [...result].sort((a, b) => {
+      const isAOwn = a.kode_bagian === userKode;
+      const isBOwn = b.kode_bagian === userKode;
+
+      if (isAOwn && !isBOwn) return -1;
+      if (!isAOwn && isBOwn) return 1;
+      return 0;
+    });
+  }
+
+  return result;
+}, [labs, searchTerm, isSuperAdmin, userKode]);
 
   /** ==== Util ==== */
   const isAktif = (status: string | number | null) => {
@@ -269,7 +285,7 @@ const MasterLab: React.FC = () => {
 
   /** ==== Actions ==== */
   const actions = (lab: Lab) => (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button
         variant="outline"
         size="sm"
@@ -296,13 +312,18 @@ const MasterLab: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 px-3 sm:px-6 lg:px-10 w-full max-w-screen-xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold text-primary">Master Laboratorium</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-primary">
+          Master Laboratorium
+        </h1>
 
         {isSuperAdmin && (
-          <Button onClick={() => { resetForm(); setIsDialogOpen(true); }}>
+          <Button
+            onClick={() => { resetForm(); setIsDialogOpen(true); }}
+            className="w-full sm:w-auto"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Tambah Lab
           </Button>
@@ -311,7 +332,7 @@ const MasterLab: React.FC = () => {
 
       {/* Dialog (buat dan edit) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[95%] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editingLab ? 'Edit Laboratorium' : 'Tambah Laboratorium Baru'}</DialogTitle>
             <DialogDescription>
@@ -322,9 +343,9 @@ const MasterLab: React.FC = () => {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="nama_lab">Nama Laboratorium</Label>
-              <Input
+              <Input className="w-full"
                 id="nama_lab"
                 value={formData.nama_lab}
                 onChange={(e) => setFormData(f => ({ ...f, nama_lab: e.target.value }))}
@@ -332,18 +353,18 @@ const MasterLab: React.FC = () => {
               />
             </div>
 
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="lokasi">Lokasi</Label>
-              <Input
+              <Input className="w-full"
                 id="lokasi"
                 value={formData.lokasi}
                 onChange={(e) => setFormData(f => ({ ...f, lokasi: e.target.value }))}
               />
             </div>
 
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="status">Status</Label>
-              <select
+              <select className="w-full border rounded-md h-9 px-3"
                 id="status"
                 className="w-full border rounded-md h-9 px-3"
                 value={formData.status}
@@ -356,9 +377,9 @@ const MasterLab: React.FC = () => {
               </select>
             </div>
 
-            <div>
+            <div className="space-y-1">
               <Label htmlFor="kode_bagian">Kode Bagian</Label>
-              <Input
+              <Input className="w-full"
                 id="kode_bagian"
                 value={formData.kode_bagian}
                 onChange={(e) =>
@@ -368,30 +389,38 @@ const MasterLab: React.FC = () => {
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button type="button" variant="outline" onClick={resetForm}>Batal</Button>
-              <Button type="submit">{editingLab ? 'Perbarui' : 'Tambah'}</Button>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" className="w-full sm:w-auto">
+                Batal
+              </Button>
+              <Button type="submit" className="w-full sm:w-auto">
+                {editingLab ? 'Perbarui' : 'Tambah'}
+              </Button>
             </div>
           </form>
         </DialogContent>
       </Dialog>
 
-      <DataTable
-        data={filteredLab}
-        columns={columns}
-        searchPlaceholder="Cari laboratorium..."
-        onSearch={setSearchTerm}
-        searchTerm={searchTerm}
-        emptyMessage={loading ? 'Memuat data…' : 'Tidak ada laboratorium ditemukan'}
-        actions={actions}
-      />
+      <div className="w-full overflow-x-auto rounded-lg border">
+        <div className="min-w-[650px]">
+          <DataTable
+            data={filteredLab}
+            columns={columns}
+            searchPlaceholder="Cari laboratorium..."
+            onSearch={setSearchTerm}
+            searchTerm={searchTerm}
+            emptyMessage={loading ? 'Memuat data…' : 'Tidak ada laboratorium ditemukan'}
+            actions={actions}
+          />
+        </div>
+      </div>
 
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={(v) => {
         if (!v) setSelectedLab(null);
         setIsDeleteDialogOpen(v);
       }}>
-        <DialogContent className="max-w-sm text-center space-y-4">
+        <DialogContent className="w-[95%] sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Hapus Laboratorium</DialogTitle>
           </DialogHeader>
