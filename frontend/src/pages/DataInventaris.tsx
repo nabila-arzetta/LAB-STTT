@@ -25,6 +25,7 @@ export default function DataInventaris() {
   const [labs, setLabs] = useState<LabDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"inventaris" | "transfer">("inventaris");
 
   useEffect(() => {
     let active = true;
@@ -184,29 +185,96 @@ export default function DataInventaris() {
   // Detail lab: tabel inventaris lab
   return (
     <div className="space-y-6">
+
+      {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => setSelectedLabKode(null)} className="shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setSelectedLabKode(null)}
+          className="shrink-0"
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
+
         <div>
-          <h1 className="text-3xl font-bold text-primary">{selectedLab?.nama ?? "Laboratorium"}</h1>
-          <p className="text-muted-foreground mt-1">{selectedLab?.kode_bagian ?? ""}{selectedLab?.lokasi ? ` - ${selectedLab.lokasi}` : ""}</p>
+          <h1 className="text-3xl font-bold text-primary">
+            {selectedLab?.nama ?? "Laboratorium"}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {selectedLab?.kode_bagian ?? ""}
+            {selectedLab?.lokasi ? ` - ${selectedLab.lokasi}` : ""}
+          </p>
         </div>
       </div>
 
-      <Card className="shadow-card">
-        <CardHeader><CardTitle>Daftar Inventaris Barang</CardTitle></CardHeader>
-        <CardContent>
-          <DataTable
-            data={filteredData}
-            columns={columnsAdapter}
-            searchPlaceholder="Cari nama barang..."
-            onSearch={setSearchTerm}
-            searchTerm={searchTerm}
-            emptyMessage={searchTerm ? "Tidak ada barang yang ditemukan" : "Belum ada data inventaris"}
-          />
-        </CardContent>
-      </Card>
+      {/* === TAB === */}
+      <div className="flex justify-between items-center gap-2 border-b pb-2">
+        <div className="flex gap-2">
+
+          {/* TAB INVENTARIS */}
+          <Button
+            variant={activeTab === "inventaris" ? "default" : "outline"}
+            className={`rounded-xl px-4 py-2 ${
+              activeTab === "inventaris"
+                ? "bg-primary text-white"
+                : "border-primary text-primary"
+            }`}
+            onClick={() => setActiveTab("inventaris")}
+          >
+            Inventaris Barang
+          </Button>
+
+          {/* TAB TRANSFER */}
+          <Button
+            variant={activeTab === "transfer" ? "default" : "outline"}
+            className={`rounded-xl px-4 py-2 ${
+              activeTab === "transfer"
+                ? "bg-primary text-white"
+                : "border-primary text-primary"
+            }`}
+            onClick={() => setActiveTab("transfer")}
+          >
+            Transfer Barang
+          </Button>
+        </div>
+      </div>  {/* <=== INI YANG KAMU LUPA! */}
+
+
+      {/* === TAB CONTENT === */}
+      {activeTab === "inventaris" ? (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Daftar Inventaris Barang</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DataTable
+              data={filteredData}
+              columns={columnsAdapter}
+              searchPlaceholder="Cari nama barang..."
+              onSearch={setSearchTerm}
+              searchTerm={searchTerm}
+              emptyMessage={
+                searchTerm
+                  ? "Tidak ada barang yang ditemukan"
+                  : "Belum ada data inventaris"
+              }
+            />
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle>Transfer Barang Antar Lab</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-sm text-muted-foreground">
+              Form & Riwayat transfer barang akan ditempatkan di sini.
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
+

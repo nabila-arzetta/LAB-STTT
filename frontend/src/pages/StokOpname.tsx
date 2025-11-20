@@ -52,8 +52,6 @@ const getKodeRuangan = (kode_bagian?: string | null) => {
   return mapBagianToRuangan[kode_bagian] ?? null;
 };
 
-// ===============================
-
 type Barang = {
   kode_barang: string;
   nama_barang: string;

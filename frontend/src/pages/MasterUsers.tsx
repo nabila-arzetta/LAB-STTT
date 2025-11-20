@@ -327,7 +327,7 @@ const MasterUsers: React.FC = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {labs.map((lab) => (
-                      <SelectItem key={lab.kode_bagian} value={lab.kode_bagian}>
+                      <SelectItem key={lab.kode_bagian + "_" + lab.nama_lab} value={lab.kode_bagian}>
                         {lab.nama_lab}
                       </SelectItem>
                     ))}
