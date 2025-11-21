@@ -1,8 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent,} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -479,7 +476,7 @@ export default function StokOpname() {
 
   if (hasToken === false) {
     return (
-      <div className="p-6">
+      <div className="space-y-6">
         <Card>
           <CardContent>
             <h3 className="text-lg font-semibold">Sesi tidak ditemukan</h3>
