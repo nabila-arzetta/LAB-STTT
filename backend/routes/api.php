@@ -44,7 +44,6 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/barang/{kode_barang}/history', [BarangController::class, 'history']);
     Route::get('/master-barang/by-lab/{kode_ruangan}', [MasterBarangController::class, 'byLab']);
     Route::apiResource('master-barang', MasterBarangController::class);
-    Route::apiResource('logistik', LogistikController::class);
 
     // -------------------- LABORATORIUM --------------------
     Route::get('/labs', [MasterLabController::class, 'index']);

@@ -28,7 +28,7 @@ class MasterBarangController extends Controller
             ->leftJoin('master_lab as ml', 'ml.id_lab', '=', 'mb.id_lab')
             ->orderBy('mb.nama_barang', 'asc');
 
-        if ($request->user()->role === 'admin_lab') {
+        if ($request->user()->role === 'admin_lab' && !$request->filled('id_lab')) {
             $query->where('mb.kode_ruangan', $request->user()->kode_bagian);
         }
 
