@@ -31,6 +31,7 @@ type User = {
 type Lab = {
   kode_bagian: string;
   nama_lab: string;
+  id_lab: number;
 };
 
 const MasterUsers: React.FC = () => {
@@ -48,7 +49,7 @@ const MasterUsers: React.FC = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
-  
+
   const [showPassword, setShowPassword] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -82,9 +83,10 @@ const MasterUsers: React.FC = () => {
       const list = Array.isArray(payload.data)
         ? payload.data
         : Array.isArray(payload)
-        ? payload
-        : [];
+          ? payload
+          : [];
       setLabs(list);
+      console.log('Fetching labs', labs);
     } catch (e: any) {
       console.error('Gagal memuat lab:', e);
       toast({
@@ -326,8 +328,10 @@ const MasterUsers: React.FC = () => {
                     <SelectValue placeholder="Pilih laboratorium" />
                   </SelectTrigger>
                   <SelectContent>
-                    {labs.map((lab) => (
-                      <SelectItem key={lab.kode_bagian + "_" + lab.nama_lab} value={lab.kode_bagian}>
+                    {Array.from(
+                      new Map(labs.filter(lab => lab.kode_bagian).map(lab => [lab.kode_bagian, lab])).values()
+                    ).map((lab) => (
+                      <SelectItem key={lab.id_lab} value={lab.kode_bagian}>
                         {lab.nama_lab}
                       </SelectItem>
                     ))}

@@ -222,6 +222,10 @@ export default function TransferBarang() {
         api.get<{ data: Barang[] }>("/master-barang"),
       ]);
 
+      console.log("Transfers:", tRes.data.data);
+      console.log("Labs:", labRes.data.data);
+      console.log("Barangs:", brgRes.data.data);
+
       setTransfers(tRes.data.data ?? []);
       setLabs(labRes.data.data ?? []);
       setBarangs(brgRes.data.data ?? []);

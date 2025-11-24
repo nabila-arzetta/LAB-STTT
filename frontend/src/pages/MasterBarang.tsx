@@ -121,6 +121,7 @@ export const MasterBarang: React.FC = () => {
       const params: Record<string, string | number> = { id_lab: labId };
       if (q && q.trim()) params.q = q.trim();
       const res = await api.get("/master-barang", { params });
+      console.log("Fetch items response:", res);
       // backend returns either array or {data: array}
       const data = (res && (res as any).data) ?? res;
       const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];

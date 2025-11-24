@@ -24,7 +24,7 @@ type Lab = {
   nama_lab: string;
   lokasi: string | null;
   status: 'aktif' | 'nonaktif' | string | number | null;
-  can_manage: boolean;
+  // can_manage: boolean;
 };
 
 const MasterLab: React.FC = () => {
@@ -160,14 +160,16 @@ const MasterLab: React.FC = () => {
 
   /** ==== Edit ==== */
   const handleEdit = (lab: Lab) => {
-    if (!lab.can_manage) {
-      toast({
-        title: 'Tidak dapat mengedit',
-        description: 'Anda tidak memiliki izin untuk mengubah lab ini.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // console.log(lab);
+    // lab.can manage tidak ada di dalam lab
+    // if (!lab.can_manage) {
+    //   toast({
+    //     title: 'Tidak dapat mengedit',
+    //     description: 'Anda tidak memiliki izin untuk mengubah lab ini.',
+    //     variant: 'destructive',
+    //   });
+    //   return;
+    // }
 
     setEditingLab(lab);
     setFormData({
@@ -290,7 +292,7 @@ const MasterLab: React.FC = () => {
         variant="outline"
         size="sm"
         onClick={() => handleEdit(lab)}
-        disabled={!lab.can_manage && !isSuperAdmin}
+        disabled={!isSuperAdmin}
       >
         <Edit className="w-4 h-4" />
       </Button>
@@ -364,7 +366,7 @@ const MasterLab: React.FC = () => {
 
             <div className="space-y-1">
               <Label htmlFor="status">Status</Label>
-              <select className="w-full border rounded-md h-9 px-3"
+              <select
                 id="status"
                 className="w-full border rounded-md h-9 px-3"
                 value={formData.status}

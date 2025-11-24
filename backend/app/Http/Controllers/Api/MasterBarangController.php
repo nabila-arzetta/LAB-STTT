@@ -28,9 +28,10 @@ class MasterBarangController extends Controller
             ->leftJoin('master_lab as ml', 'ml.id_lab', '=', 'mb.id_lab')
             ->orderBy('mb.nama_barang', 'asc');
 
-        if ($request->user()->role === 'admin_lab') {
-            $query->where('mb.kode_ruangan', $request->user()->kode_bagian);
-        }
+        // kode ruangan dari user dan kode ruangan dari master barang harus sama
+        // if ($request->user()->role === 'admin_lab') {
+        //     $query->where('mb.kode_ruangan', $request->user()->kode_bagian);
+        // }
 
         // 🔹 Filter berdasarkan id_lab
         if ($request->filled('id_lab')) {
@@ -49,7 +50,7 @@ class MasterBarangController extends Controller
         $barang = $query->get();
 
         return response()->json([
-            'data' => $barang
+            'data' => $barang,
         ]);
     }
 
