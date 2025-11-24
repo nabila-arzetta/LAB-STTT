@@ -5,11 +5,11 @@ import { Label } from '@/components/ui/label';
 import { DataTable } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/badge';
 import {
-  Dialog, 
-  DialogContent, 
+  Dialog,
+  DialogContent,
   DialogDescription,
-  DialogHeader, 
-  DialogTitle, 
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
@@ -73,30 +73,30 @@ const MasterLab: React.FC = () => {
 
   /** ==== Filter Search ==== */
   const filteredLab = useMemo(() => {
-  const q = searchTerm.trim().toLowerCase();
-  let result = labs;
+    const q = searchTerm.trim().toLowerCase();
+    let result = labs;
 
-  if (q) {
-    result = labs.filter(l =>
-      (l.nama_lab ?? '').toLowerCase().includes(q) ||
-      (l.lokasi ?? '').toLowerCase().includes(q) ||
-      (l.kode_bagian ?? '').toLowerCase().includes(q)
-    );
-  }
+    if (q) {
+      result = labs.filter(l =>
+        (l.nama_lab ?? '').toLowerCase().includes(q) ||
+        (l.lokasi ?? '').toLowerCase().includes(q) ||
+        (l.kode_bagian ?? '').toLowerCase().includes(q)
+      );
+    }
 
-  if (!isSuperAdmin) {
-    result = [...result].sort((a, b) => {
-      const isAOwn = a.kode_bagian === userKode;
-      const isBOwn = b.kode_bagian === userKode;
+    if (!isSuperAdmin) {
+      result = [...result].sort((a, b) => {
+        const isAOwn = a.kode_bagian === userKode;
+        const isBOwn = b.kode_bagian === userKode;
 
-      if (isAOwn && !isBOwn) return -1;
-      if (!isAOwn && isBOwn) return 1;
-      return 0;
-    });
-  }
+        if (isAOwn && !isBOwn) return -1;
+        if (!isAOwn && isBOwn) return 1;
+        return 0;
+      });
+    }
 
-  return result;
-}, [labs, searchTerm, isSuperAdmin, userKode]);
+    return result;
+  }, [labs, searchTerm, isSuperAdmin, userKode]);
 
   /** ==== Util ==== */
   const isAktif = (status: string | number | null) => {
@@ -232,86 +232,89 @@ const MasterLab: React.FC = () => {
     }
   };
 
-    /** ==== Kolom Tabel ==== */
-    const columns = [
-      {
-        key: 'no',
-        header: 'No',
-        className: 'w-16 text-center',
-        render: (lab: Lab) => {
-          const index = filteredLab.findIndex((item) => item === lab);
-          return index >= 0 ? index + 1 : '-';
-        },
+  /** ==== Kolom Tabel ==== */
+  const columns = [
+    {
+      key: 'no',
+      header: 'No',
+      className: 'w-16 text-center',
+      render: (lab: Lab) => {
+        const index = filteredLab.findIndex((item) => item === lab);
+        return index >= 0 ? index + 1 : '-';
       },
-      {
-        key: 'nama_lab',
-        header: 'Nama Laboratorium',
-        render: (lab: Lab) => (
-          <div className="flex items-center gap-2">
-            <Building className="w-4 h-4 text-primary" />
-            <span>{lab.nama_lab}</span>
-          </div>
-        ),
-      },
-      { key: 'lokasi', header: 'Lokasi' },
-      {
-        key: 'status',
-        header: 'Status',
-        render: (lab: Lab) => (
-          isAktif(lab.status)
-            ? (
-              <span
-                className="inline-block px-3 py-1 text-sm font-medium rounded-full 
+    },
+    {
+      key: 'nama_lab',
+      header: 'Nama Laboratorium',
+      render: (lab: Lab) => (
+        <div className="flex items-center gap-2">
+          <Building className="w-4 h-4 text-primary" />
+          <span>{lab.nama_lab}</span>
+        </div>
+      ),
+    },
+    { key: 'lokasi', header: 'Lokasi' },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (lab: Lab) => (
+        isAktif(lab.status)
+          ? (
+            <span
+              className="inline-block px-3 py-1 text-sm font-medium rounded-full 
                           bg-green-100 text-green-700 border border-green-300 
                           select-none cursor-default"
-              >
-                Aktif
-              </span>
-            ) : (
-              <span
-                className="inline-block px-3 py-1 text-sm font-medium rounded-full 
+            >
+              Aktif
+            </span>
+          ) : (
+            <span
+              className="inline-block px-3 py-1 text-sm font-medium rounded-full 
                           bg-gray-100 text-gray-700 border border-gray-300 
                           select-none cursor-default"
-              >
-                Nonaktif
-              </span>
-            )
-        ),
-      },
-      {
-        key: 'kode_bagian',
-        header: 'Kode Bagian',
-        render: (lab: Lab) => <Badge variant="outline">{lab.kode_bagian ?? '-'}</Badge>,
-      },
-    ];
+            >
+              Nonaktif
+            </span>
+          )
+      ),
+    },
+    {
+      key: 'kode_bagian',
+      header: 'Kode Bagian',
+      render: (lab: Lab) => <Badge variant="outline">{lab.kode_bagian ?? '-'}</Badge>,
+    },
+  ];
 
   /** ==== Actions ==== */
-  const actions = (lab: Lab) => (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleEdit(lab)}
-        disabled={!isSuperAdmin}
-      >
-        <Edit className="w-4 h-4" />
-      </Button>
-
-      {isSuperAdmin && (
+  const actions = (lab: Lab) => {
+    const canEdit = isSuperAdmin || lab.kode_bagian === userKode;
+    return (
+      <div className="flex flex-wrap items-center gap-2">
         <Button
           variant="outline"
           size="sm"
-          className="text-destructive"
-          onClick={() => {
-            setSelectedLab(lab);
-            setIsDeleteDialogOpen(true);
-          }}
+          onClick={() => handleEdit(lab)}
+          disabled={!canEdit}
         >
-          <Trash2 className="w-4 h-4" />
+          <Edit className="w-4 h-4" />
         </Button>
-      )}
-    </div>
-  );
+
+        {isSuperAdmin && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive"
+            onClick={() => {
+              setSelectedLab(lab);
+              setIsDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 px-3 sm:px-6 lg:px-10 w-full max-w-screen-xl mx-auto">
