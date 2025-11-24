@@ -14,6 +14,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Eye, EyeOff, Plus, Edit, Trash2 } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,7 +39,8 @@ const MasterUsers: React.FC = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'superadmin';
-
+  const [selectedLabUser, setSelectedLabUser] = useState<any | null>(null);
+  const [selectedLabName, setSelectedLabName] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [labs, setLabs] = useState<Lab[]>([]);
@@ -103,12 +105,28 @@ const MasterUsers: React.FC = () => {
     fetchLabs();
   }, [fetchUsers, fetchLabs]);
 
-  const filteredUsers = useMemo(() => {
-    const q = searchTerm.toLowerCase();
-    return users.filter(
-      (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-    );
-  }, [users, searchTerm]);
+  // const filteredUsers = useMemo(() => {
+  //   const q = searchTerm.toLowerCase();
+  //   return users.filter(
+  //     (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  //   );
+  // }, [users, searchTerm]);
+
+  const groupedUsers = useMemo(() => {
+    const map = new Map<string, any>();
+    users.forEach(u => {
+      const key = u.email;
+      if (!map.has(key)) {
+        map.set(key, { ...u, labs: u.lab_name ? [u.lab_name] : [] });
+      } else {
+        const existing = map.get(key)!;
+        if (u.lab_name && !existing.labs.includes(u.lab_name)) {
+          existing.labs.push(u.lab_name);
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [users])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -155,9 +173,28 @@ const MasterUsers: React.FC = () => {
     setIsDialogOpen(true);
   };
 
+  // const handleDelete = async (id: number) => {
+  //   setLoading(true);
+  //   try {
+  //     setUsers((prev) => prev.filter((u) => u.id !== id));
+  //     toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
+  //   } catch (err: any) {
+  //     toast({
+  //       title: 'Gagal menghapus',
+  //       description: err?.response?.data?.message ?? err.message,
+  //       variant: 'destructive',
+  //     });
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const handleDelete = async (id: number) => {
     setLoading(true);
     try {
+      // Panggil API backend untuk hapus user
+      await api.delete(`/users/${id}`);
+      // Update state setelah berhasil hapus di server
       setUsers((prev) => prev.filter((u) => u.id !== id));
       toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
     } catch (err: any) {
@@ -191,6 +228,26 @@ const MasterUsers: React.FC = () => {
     }
   };
 
+  const handleDeleteLab = async (groupedUser: any, labName: string) => {
+    // Cari semua user dengan email yang sama
+    const userLabs = users.filter(u => u.email === groupedUser.email);
+    // Cari user-lab yang ingin dihapus
+    const userLab = userLabs.find(u => u.lab_name === labName);
+
+    if (!userLab) return;
+
+    if (userLabs.length > 1) {
+      // Hapus baris user dengan lab yang dipilih
+      await api.delete(`/users/${userLab.id}`);
+      toast({ title: 'Berhasil', description: `Lab "${labName}" dihapus dari user.` });
+    } else {
+      // Hanya satu lab, hapus user-nya
+      await api.delete(`/users/${userLab.id}`);
+      toast({ title: 'Berhasil', description: `User "${groupedUser.name}" dihapus.` });
+    }
+    fetchUsers();
+  };
+
 
   const resetForm = () => {
     setFormData({ name: '', email: '', password: '', role: 'admin_lab', kode_bagian: '' });
@@ -198,27 +255,78 @@ const MasterUsers: React.FC = () => {
     setIsDialogOpen(false);
   };
 
+  // const columns = [
+  //   {
+  //     key: 'no',
+  //     header: 'No',
+  //     className: 'w-16 text-center',
+  //     render: (u: User) => <>{users.indexOf(u) + 1}</>,
+  //   },
+  //   { key: 'name', header: 'Nama' },
+  //   { key: 'email', header: 'Email' },
+  //   {
+  //     key: 'role',
+  //     header: 'Role',
+  //     render: (u: User) => <Badge>{u.role}</Badge>,
+  //   },
+  //   {
+  //     key: 'lab',
+  //     header: 'Laboratorium',
+  //     render: (u: any) => u.lab_name ?? '-',
+  //   },
+  // ];
+
   const columns = [
     {
       key: 'no',
       header: 'No',
       className: 'w-16 text-center',
-      render: (u: User) => <>{users.indexOf(u) + 1}</>,
+      render: (_: any, idx: number) => <>{idx + 1}</>,
     },
     { key: 'name', header: 'Nama' },
     { key: 'email', header: 'Email' },
     {
       key: 'role',
       header: 'Role',
-      render: (u: User) => <Badge>{u.role}</Badge>,
+      render: (u: any) => <Badge>{u.role}</Badge>,
     },
     {
-      key: 'lab',
+      key: 'labs',
       header: 'Laboratorium',
-      render: (u: any) => u.lab_name ?? '-',
+      render: (u: any) => (
+        <div>
+          {u.labs.length === 1 ? (
+            u.labs[0]
+          ) : (
+            <Accordion type="single" collapsible>
+              <AccordionItem value="lab-list">
+                <AccordionTrigger>
+                  {u.labs.length} lab
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-2">
+                    {u.labs.map((lab: string) => (
+                      <div key={lab} className="flex items-center justify-between px-2 py-1 border-b last:border-b-0">
+                        <span>{lab}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive"
+                          onClick={() => handleDeleteLab(u, lab)}
+                        >
+                          Hapus
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+        </div>
+      ),
     },
   ];
-
   const actions = (u: User) => (
     <div className="flex gap-2">
       <Button variant="outline" size="sm" onClick={() => handleEdit(u)}>
@@ -352,7 +460,7 @@ const MasterUsers: React.FC = () => {
       </Dialog>
 
       <DataTable
-        data={filteredUsers}
+        data={groupedUsers}
         columns={columns}
         onSearch={setSearchTerm}
         searchTerm={searchTerm}

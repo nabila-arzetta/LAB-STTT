@@ -146,7 +146,7 @@ export default function StokOpname() {
       const res = await fetch(url, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.message || "Gagal memuat");
-
+      console.log("loadOpname data:", json.data);
       setOpnameData(Array.isArray(json.data) ? json.data : []);
     } catch (err: any) {
       toast.error(err?.message ?? "Gagal memuat data opname");

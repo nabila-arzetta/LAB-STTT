@@ -14,7 +14,7 @@ import { Search } from 'lucide-react';
 interface Column<T> {
   key: string;
   header: string;
-  render?: (item: T) => React.ReactNode;
+  render?: (item: T, index: number) => React.ReactNode;
   className?: string;
 }
 
@@ -70,7 +70,7 @@ export function DataTable<T extends Record<string, any>>({
               <TableRow key={index}>
                 {columns.map((column) => (
                   <TableCell key={column.key} className={column.className}>
-                    {column.render ? column.render(item) : item[column.key]}
+                    {column.render ? column.render(item, index) : item[column.key]}
                   </TableCell>
                 ))}
                 {actions && (
