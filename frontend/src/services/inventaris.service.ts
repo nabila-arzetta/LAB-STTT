@@ -18,6 +18,7 @@ export async function listInventaris(): Promise<StokInventaris[]> {
   try {
     const res = await api.get("/inventaris"); // endpoint inventaris controller
     const data = res.data?.data ?? res.data ?? [];
+    console.log("Data inventaris:", data);
     if (!Array.isArray(data)) return [];
 
     return data.map((it: any) => ({

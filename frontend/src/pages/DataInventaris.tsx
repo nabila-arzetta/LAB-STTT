@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/DataTable";
-import { ArrowLeft, AlertTriangle, Building2, ChevronRight, Search} from "lucide-react";
+import { ArrowLeft, AlertTriangle, Building2, ChevronRight, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { listInventaris, type StokInventaris } from "@/services/inventaris.service";
 import { listLabs, type LabDTO } from "@/services/lab.service";
@@ -152,31 +152,39 @@ export default function DataInventaris() {
   const userLabId = getUserLab();
 
   // Filter lab aktif dan akses user
+  // const availableLabs = useMemo(() => {
+  //   const activeLabs = labs.filter((l) => (l.status ?? "aktif") === "aktif");
+  //   if (!isAdmin()) {
+  //     // jika bukan superadmin, hanya lab yg sesuai userLabId (kode_bagian atau kode_ruangan)
+  //     if (!userLabId) return activeLabs;
+  //     return activeLabs.filter((l) =>
+  //       String(l.kode_ruangan ?? "").toLowerCase() === String(userLabId).toLowerCase()
+  //       || String(l.kode_bagian ?? "").toLowerCase() === String(userLabId).toLowerCase()
+  //       || String(l.kode ?? "").toLowerCase() === String(userLabId).toLowerCase()
+  //     );
+  //   }
+  //   // superadmin bisa lihat semua aktif
+  //   return activeLabs;
+  // }, [labs, isAdmin, userLabId]);
   const availableLabs = useMemo(() => {
-    const activeLabs = labs.filter((l) => (l.status ?? "aktif") === "aktif");
-    if (!isAdmin()) {
-      // jika bukan superadmin, hanya lab yg sesuai userLabId (kode_bagian atau kode_ruangan)
-      if (!userLabId) return activeLabs;
-      return activeLabs.filter((l) =>
-        String(l.kode_ruangan ?? "").toLowerCase() === String(userLabId).toLowerCase()
-        || String(l.kode_bagian ?? "").toLowerCase() === String(userLabId).toLowerCase()
-        || String(l.kode ?? "").toLowerCase() === String(userLabId).toLowerCase()
-      );
-    }
-    // superadmin bisa lihat semua aktif
-    return activeLabs;
-  }, [labs, isAdmin, userLabId]);
+    return labs;
+  }, [labs]);
 
   // Jika belum pilih lab, tampilkan kartu lab; kalau pilih, tampilkan data item di lab tersebut
   const baseData = useMemo(() => {
     if (!selectedLabKode) return inventaris;
 
     const kode = String(selectedLabKode).toLowerCase();
-    return inventaris.filter((i) =>
-      String(i.kode_ruangan ?? i.lab ?? i.kode_bagian ?? "").toLowerCase() === kode
-      || String(i.kode_bagian ?? "").toLowerCase() === kode
-      || String(i.lab ?? "").toLowerCase() === kode
-    );
+    return inventaris
+      .filter((i) =>
+        String(i.kode_ruangan ?? i.lab ?? i.kode_bagian ?? "").toLowerCase() === kode
+        || String(i.kode_bagian ?? "").toLowerCase() === kode
+        || String(i.lab ?? "").toLowerCase() === kode
+      )
+      .map((item) => ({
+        ...item,
+        stok_akhir: Number(item.stok_akhir ?? 0),
+      }));
   }, [inventaris, selectedLabKode]);
 
   const filteredData = useMemo(() => {
@@ -198,6 +206,7 @@ export default function DataInventaris() {
     const start = (transferPage - 1) * itemsPerPage;
     return filteredTransfer.slice(start, start + itemsPerPage);
   }, [filteredTransfer, transferPage]);
+
 
   const columns: Column<StokInventaris>[] = [
     { key: "nama_barang", header: "Nama Barang", className: "font-medium" },
@@ -267,12 +276,12 @@ export default function DataInventaris() {
           <p className="text-muted-foreground mt-1">Pilih laboratorium untuk melihat daftar barang di lab tersebut</p>
         </div>
 
-        {errorMsg && 
-        <Card className="border-destructive/40">
-          <CardContent 
-          className="p-4 text-destructive">{errorMsg}
-          </CardContent>
-        </Card>}
+        {errorMsg &&
+          <Card className="border-destructive/40">
+            <CardContent
+              className="p-4 text-destructive">{errorMsg}
+            </CardContent>
+          </Card>}
 
         {loading ? (
           <div className="text-sm text-muted-foreground">Memuat data…</div>
@@ -290,7 +299,7 @@ export default function DataInventaris() {
                   onClick={() => pick && setSelectedLabKode(String(pick))}
                 >
                   <div className="flex items-center gap-4">
-                    
+
                     <div className="w-16 h-16 rounded-2xl bg-gray-200/70 flex items-center justify-center">
                       <Building2 className="w-6 h-6 text-primary" />
                     </div>
@@ -347,11 +356,10 @@ export default function DataInventaris() {
           {/* TAB INVENTARIS */}
           <Button
             variant={activeTab === "inventaris" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${
-              activeTab === "inventaris"
-                ? "bg-primary text-white"
-                : "border-primary text-primary"
-            }`}
+            className={`rounded-xl px-4 py-2 ${activeTab === "inventaris"
+              ? "bg-primary text-white"
+              : "border-primary text-primary"
+              }`}
             onClick={() => setActiveTab("inventaris")}
           >
             Inventaris Barang
@@ -360,11 +368,10 @@ export default function DataInventaris() {
           {/* TAB TRANSFER */}
           <Button
             variant={activeTab === "transfer" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${
-              activeTab === "transfer"
-                ? "bg-primary text-white"
-                : "border-primary text-primary"
-            }`}
+            className={`rounded-xl px-4 py-2 ${activeTab === "transfer"
+              ? "bg-primary text-white"
+              : "border-primary text-primary"
+              }`}
             onClick={() => setActiveTab("transfer")}
           >
             Transfer Barang
