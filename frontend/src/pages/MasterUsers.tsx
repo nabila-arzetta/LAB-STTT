@@ -65,6 +65,7 @@ const MasterUsers: React.FC = () => {
       setLoading(true);
       const { data } = await api.get<{ data: User[] }>('/users');
       setUsers(data.data || []);
+      console.log('Fetched users:', data.data);
     } catch (err: any) {
       toast({
         title: 'Gagal memuat data',

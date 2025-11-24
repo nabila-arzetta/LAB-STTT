@@ -106,11 +106,19 @@ class MasterLabController extends Controller
             return response()->json(['message' => 'Anda tidak berhak mengedit lab ini.'], 403);
         }
 
+        if ($kodeBagian && !DB::table('bagian')->where('kode_bagian', $kodeBagian)->exists()) {
+            DB::table('bagian')->insert([
+                'kode_bagian' => $kodeBagian,
+                'nama_bagian' => strtoupper($data['nama_lab']),
+                'status'      => $status,
+            ]);
+        }
+
         DB::table('master_lab')->where('id_lab', $id)->update([
             'nama_lab'   => strtoupper($data['nama_lab']),
             'lokasi'     => $data['lokasi'] ?? '-',
             'status'     => $status,
-            'kode_bagian'=> $kodeBagian ?: null,
+            'kode_bagian' => $kodeBagian ?: null,
             'updated_at' => now(),
         ]);
 
