@@ -245,38 +245,36 @@ class TransferBarangController extends Controller
             $allFull = true;
 
             foreach ($validated['detail'] as $d) {
-                $kode        = $d['kode_barang'];
+
+                $kodeBarang = $d['kode_barang'];
                 $qtyApproved = (int) $d['qty_approved'];
 
-                if (!isset($detailRows[$kode])) {
-                    // bisa di-skip / atau jadikan error 422
-                    continue;
-                }
+                if ($qtyApproved <= 0) continue;
 
-                $row = $detailRows[$kode];
+                // Kurangi stok di lab asal
+                DB::table('inventaris')
+                    ->where('kode_ruangan', $transfer->kode_ruangan_dari)
+                    ->where('kode_barang', $kodeBarang)
+                    ->decrement('stok_akhir', $qtyApproved);
 
-                if ($qtyApproved < 0 || $qtyApproved > $row->quantity) {
-                    DB::rollBack();
+                // Tambah stok di lab tujuan
+                $exists = DB::table('inventaris')
+                    ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
+                    ->where('kode_barang', $kodeBarang)
+                    ->exists();
 
-                    return response()->json([
-                        'message' => "Qty approved untuk {$kode} tidak valid",
-                    ], 422);
-                }
-
-                if ($qtyApproved > 0) {
-                    $allZero = false;
-                }
-                if ($qtyApproved < $row->quantity) {
-                    $allFull = false;
-                }
-
-                DB::table('transfer_barang_detail')
-                    ->where('id_transfer', $id)
-                    ->where('kode_barang', $kode)
-                    ->update([
-                        'qty_approved' => $qtyApproved,
-                        'updated_at'   => now(),
+                if ($exists) {
+                    DB::table('inventaris')
+                        ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
+                        ->where('kode_barang', $kodeBarang)
+                        ->increment('stok_akhir', $qtyApproved);
+                } else {
+                    DB::table('inventaris')->insert([
+                        'kode_ruangan' => $transfer->kode_ruangan_tujuan,
+                        'kode_barang' => $kodeBarang,
+                        'stok_akhir' => $qtyApproved,
                     ]);
+                }
             }
 
             // tentukan status baru
@@ -298,6 +296,42 @@ class TransferBarangController extends Controller
                 ]);
 
             // NOTE: di sini kamu bisa tambahkan logika update stok jika mau
+
+            // ==========================
+            // UPDATE STOK LAB ASAL & TUJUAN
+            // ==========================
+            foreach ($validated['detail'] as $d) {
+
+                $kodeBarang = $d['kode_barang'];
+                $qtyApproved = (int) $d['qty_approved'];
+
+                if ($qtyApproved <= 0) continue;
+
+                // kurangi stok lab asal
+                DB::table('inventaris')
+                    ->where('kode_ruangan', $transfer->kode_ruangan_dari)
+                    ->where('kode_barang', $kodeBarang)
+                    ->decrement('stok_akhir', $qtyApproved);
+
+                // tambah stok lab tujuan
+                $exists = DB::table('inventaris')
+                    ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
+                    ->where('kode_barang', $kodeBarang)
+                    ->exists();
+
+                if ($exists) {
+                    DB::table('inventaris')
+                        ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
+                        ->where('kode_barang', $kodeBarang)
+                        ->increment('stok_akhir', $qtyApproved);
+                } else {
+                    DB::table('inventaris')->insert([
+                        'kode_ruangan' => $transfer->kode_ruangan_tujuan,
+                        'kode_barang' => $kodeBarang,
+                        'stok_akhir' => $qtyApproved,
+                    ]);
+                }
+            }
 
             DB::commit();
 

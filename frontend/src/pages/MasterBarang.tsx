@@ -85,19 +85,21 @@ export const MasterBarang: React.FC = () => {
     (async () => {
       try {
         setLoadingLabs(true);
-        const res = await api.get<{ data?: Lab[] }>(" /bagian".trim(), {
-          // trimmed to avoid accidental leading whitespace in some editors
+        const res = await api.get<{ data?: Lab[] }>("/bagian", {
           params: { onlyManage: 1 },
         });
+
         if (!active) return;
+
         const data = (res && (res as any).data) || {};
         const list: Lab[] = Array.isArray(data.data) ? data.data : data.data ?? data;
-        const aktifs = (list ?? []).filter((l: Lab) => (l.status ?? "aktif") === "aktif");
-        setLabs(aktifs);
 
-        // if user only manages one lab, auto select it (kept behavior)
-        if (aktifs.length === 1) {
-          const onlyId = getLabId(aktifs[0]);
+        // langsung set tanpa filter
+        setLabs(list ?? []);
+
+        // auto select jika hanya 1 lab
+        if ((list ?? []).length === 1) {
+          const onlyId = getLabId(list[0]);
           if (onlyId) setSelectedLabId(onlyId);
         }
       } catch (err) {

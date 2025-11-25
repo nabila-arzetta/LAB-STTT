@@ -19,6 +19,7 @@ class User extends Authenticatable
         'full_name',
         'role',
         'kode_bagian',
+        'kode_ruangan',
         'is_active',
         'last_login',
     ];

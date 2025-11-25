@@ -17,10 +17,20 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Eye, Pencil, Trash2 } from "lucide-react";
+
+import {
+  Plus,
+  Eye,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+
 
 type Barang = {
   id?: number;
@@ -46,10 +56,12 @@ type Penggunaan = {
 };
 
 type Lab = {
-  id_lab: number;
+  id_lab?: number; 
   nama_lab: string;
   kode_ruangan: string;
   kode_bagian: string;
+  status?: string;  
+  lokasi?: string;
 };
 
 type FormState = {
@@ -123,52 +135,50 @@ export default function PenggunaanBarang() {
     setLoading(true);
 
     try {
-      // Ambil semua lab
-      const labRes = await api.get("/labs/options");
-      const labs: Lab[] = labRes.data.data ?? [];
-      setLabList(labs);
+      const labRes = await api.get<{ data: Lab[] }>("/labs/options");
+      const labsFromApi = labRes?.data?.data ?? [];
 
-      // Temukan lab yang dimiliki admin
-      const userLab = labs.find(
-        (l: any) =>
-          String(l.kode_bagian).toLowerCase() ===
-          String(userKodeBagian).toLowerCase()
+      const aktifs = labsFromApi.filter(
+        (l) => (l.status ?? "aktif").toLowerCase() === "aktif"
+      );
+
+      setLabList(aktifs);
+
+      // Temukan lab yang dimiliki admin (pakai tipe nyata, bukan any)
+      const userLab = aktifs.find(
+        (l) => String(l.kode_bagian).toLowerCase() === String(userKodeBagian).toLowerCase()
       );
 
       const userKodeRuangan = userLab?.kode_ruangan?.toUpperCase() ?? null;
 
-      // Fetch penggunaan dan barang
-      const [penggunaanRes, barangRes] = await Promise.all([
-        api.get("/penggunaan-barang"),
-        isAdminLab && userKodeRuangan
-          ? api.get(`/master-barang/by-lab/${userKodeRuangan}`)
-          : api.get("/master-barang"),
-      ]);
+      // Fetch penggunaan dan barang — beri typing yang sesuai
+      const penggunaanRes = await api.get<{ data: Penggunaan[] }>("/penggunaan-barang");
 
-      const barangData: Barang[] = barangRes.data.data ?? [];
+      const barangRes = isAdminLab && userKodeRuangan
+        ? await api.get<{ data: Barang[] }>(`/master-barang/by-lab/${userKodeRuangan}`)
+        : await api.get<{ data: Barang[] }>("/master-barang");
+
+      const barangData: Barang[] = barangRes?.data?.data ?? [];
       setBarangList(barangData);
 
-      const penggunaanData: Penggunaan[] = penggunaanRes.data.data ?? [];
+      const penggunaanData: Penggunaan[] = penggunaanRes?.data?.data ?? [];
 
       // Normalisasi detail → inject barang info
-      const normalized = penggunaanData.map((p) => ({
+      const normalized: Penggunaan[] = penggunaanData.map((p) => ({
         ...p,
-        detail: p.detail.map((d) => ({
+        detail: (p.detail ?? []).map((d) => ({
           ...d,
           barang:
             d.barang ??
             barangData.find((b) => b.kode_barang === d.kode_barang) ??
-            null,
+            undefined,
         })),
       }));
 
       // Filter untuk admin_lab
-      const visible =
-        isAdminLab && userKodeRuangan
-          ? normalized.filter(
-              (p) => p.kode_ruangan?.toUpperCase() === userKodeRuangan
-            )
-          : normalized;
+      const visible = isAdminLab && userKodeRuangan
+        ? normalized.filter((p) => String(p.kode_ruangan).toUpperCase() === userKodeRuangan)
+        : normalized;
 
       setPenggunaan(visible);
 
@@ -179,7 +189,7 @@ export default function PenggunaanBarang() {
     } catch (error: any) {
       toast({
         title: "Gagal memuat data",
-        description: error?.response?.data?.message ?? error.message,
+        description: error?.response?.data?.message ?? error?.message ?? String(error),
         variant: "destructive",
       });
     } finally {
@@ -403,7 +413,7 @@ export default function PenggunaanBarang() {
     );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full">
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
@@ -556,15 +566,6 @@ export default function PenggunaanBarang() {
         )}
       </div>
 
-      {/* SEARCH */}
-      {(isAdminLab || selectedLab) && (
-        <Input
-          placeholder="Cari Penggunaan..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      )}
-
       {/* TABLE ADMIN LAB (TIDAK DIUBAH) */}
       {isAdminLab ? (
         <div className="overflow-x-auto border rounded-md">
@@ -625,22 +626,30 @@ export default function PenggunaanBarang() {
           {isSuperAdmin && !selectedLab && (
             <div className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {labList.map((lab) => (
-                  <button
-                    key={lab.kode_ruangan}
-                    type="button"
-                    onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
-                    className="w-full text-left border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors"
-                  >
-                    <p className="font-semibold text-primary">{lab.nama_lab}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Kode ruang: {lab.kode_ruangan}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Kode bagian: {lab.kode_bagian}
-                    </p>
-                  </button>
-                ))}
+                {labList
+                  .slice()
+                  .sort((a, b) => String(a.nama_lab).localeCompare(String(b.nama_lab)))
+                  .map((lab) => (
+                    <div
+                      key={lab.kode_ruangan}
+                      className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
+                      onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="p-3 bg-primary/20 rounded-lg">
+                          <Building2 className="w-6 h-6 text-primary" />
+                        </div>
+
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      </div>
+
+                      <h3 className="font-semibold text-lg">{lab.nama_lab}</h3>
+
+                      <p className="text-sm text-muted-foreground">
+                        {lab.kode_ruangan} — {lab.kode_bagian}
+                      </p>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -648,23 +657,40 @@ export default function PenggunaanBarang() {
           {/* Kalau lab sudah dipilih → tampilkan tabel dengan kolom yang diminta */}
           {isSuperAdmin && selectedLab && (
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  Menampilkan penggunaan barang untuk{" "}
-                  <span className="font-semibold text-primary">
-                    {selectedLab.nama_lab}
-                  </span>{" "}
-                  ({selectedLab.kode_ruangan})
-                </p>
+              <div className="flex items-center gap-4">
                 <Button
-                  variant="outline"
-                  type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setSelectedKodeRuangan(null)}
+                  className="shrink-0"
                 >
-                  Ganti Lab
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
+
+                <div>
+                  <h1 className="text-3xl font-bold text-primary">
+                    {selectedLab.nama_lab}
+                  </h1>
+
+                  <p className="text-muted-foreground mt-1">
+                    {selectedLab.kode_ruangan} – {selectedLab.kode_bagian}
+                  </p>
+                </div>
               </div>
 
+              {/* SEARCH */}
+              {(isAdminLab || selectedLab) && (
+                <div className="w-full mt-4 px-2">
+                  <Input
+                    placeholder="Cari Penggunaan..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full max-w-none"
+                  />
+                </div>
+              )}
+
+              {/* TABLE */}
               <div className="overflow-x-auto border rounded-md">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted">

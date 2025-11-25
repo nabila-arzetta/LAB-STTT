@@ -8,11 +8,6 @@ use Illuminate\Support\Facades\DB;
 
 class PenggunaanBarangController extends Controller
 {
-    /**
-     * LIST PENGGUNAAN
-     * superadmin -> semua
-     * admin_lab  -> hanya lab sendiri (kode_bagian sama)
-     */
     public function index(Request $request)
     {
         $user = $request->user();

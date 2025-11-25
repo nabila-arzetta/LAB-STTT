@@ -20,7 +20,7 @@ class LabController extends Controller
                 'id_lab as lab_id',
                 'nama_lab',
                 'kode_bagian',
-                'kode_ruangan', //tambahan rafa
+                'kode_ruangan',
                 'status',
                 'lokasi',
             ])
@@ -58,7 +58,15 @@ class LabController extends Controller
     public function options()
     {
         $labs = DB::table('master_lab')
-            ->select('id_lab', 'kode_ruangan', 'nama_lab', 'lokasi', 'kode_bagian')
+            ->select([
+                'id_lab',
+                'kode_ruangan',
+                'nama_lab',
+                'lokasi',
+                'kode_bagian',
+                'status'
+            ])
+            ->where('status', 'aktif')
             ->orderBy('nama_lab')
             ->get();
 
@@ -67,5 +75,4 @@ class LabController extends Controller
             'data' => $labs
         ]);
     }
-
 }

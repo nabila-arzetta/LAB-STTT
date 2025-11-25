@@ -14,16 +14,34 @@ class StokController extends Controller
     public function index(Request $request)
     {
         try {
-            $stok = DB::table('view_stok_inventaris')->get();
+            $user = $request->user();
+            $role = $user->role;
+
+            $lab = $request->query('lab'); // <-- ambil lab dari query param
+
+            $query = DB::table('view_stok_opname');
+
+            // superadmin -> boleh pilih lab manapun
+            if ($role === 'superadmin' && $lab) {
+                $query->where('kode_ruangan', strtoupper($lab));
+            }
+
+            // admin lab -> pakai kode_bagian
+            if ($role === 'admin_lab') {
+                $query->where('kode_ruangan', strtoupper($user->kode_bagian));
+            }
+
+            $data = $query->orderBy('tanggal', 'desc')->get();
 
             return response()->json([
                 'success' => true,
-                'data' => $stok,
-            ], 200);
+                'data' => $data
+            ]);
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memuat data stok: ' . $e->getMessage(),
+                'message' => 'Error: ' . $e->getMessage()
             ], 500);
         }
     }

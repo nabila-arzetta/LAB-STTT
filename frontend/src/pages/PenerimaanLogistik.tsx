@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState} from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,14 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { 
+  Plus, 
+  Pencil, 
+  Trash2, 
+  ArrowLeft, 
+  Building2,
+  ChevronRight 
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
@@ -170,7 +177,8 @@ export default function PenerimaanLogistik() {
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatTanggal = (tgl: string) => {
     if (!tgl) return "-";
@@ -369,10 +377,8 @@ export default function PenerimaanLogistik() {
     );
 
   return (
-    <div className="space-y-6">
-      {/* ----------------------------------------------------- */}
+    <div className="space-y-6 w-full max-w-full">
       {/* HEADER */}
-      {/* ----------------------------------------------------- */}
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-primary">
@@ -452,8 +458,8 @@ export default function PenerimaanLogistik() {
 
                 {form.detail.length > 0 && (
                   <div className="border rounded-md p-3 space-y-2">
-                    {form.detail.map((d) => (
-                      <div className="flex justify-between items-center border-b py-2">
+                    {form.detail.map((d, idx) => (
+                      <div key={idx} className="flex justify-between items-center border-b py-2">
                         <div>
                           <p className="font-semibold">
                             {d.barang?.nama_barang || d.kode_barang}
@@ -515,21 +521,12 @@ export default function PenerimaanLogistik() {
         )}
       </div>
 
-      {/* SEARCH */}
-      {(isAdminLab || selectedLab) && (
-        <Input
-          placeholder="Cari penerimaan..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      )}
-
       {/* TABLE ADMIN */}
       {isAdminLab ? (
         <div className="overflow-x-auto border rounded-md">
           <table className="min-w-full text-sm">
             <thead className="bg-muted">
-            <tr>
+              <tr>
                 <th className="p-2 text-left">Tanggal</th>
                 <th className="p-2 text-left">Kode Barang</th>
                 <th className="p-2 text-left">Nama Barang</th>
@@ -537,7 +534,7 @@ export default function PenerimaanLogistik() {
                 <th className="p-2 text-left">Satuan</th>
                 <th className="p-2 text-left">Keterangan</th>
                 <th className="p-2 text-left">Aksi</th>
-            </tr>
+              </tr>
             </thead>
             <tbody>
               {detailRows.map((row) => (
@@ -580,42 +577,73 @@ export default function PenerimaanLogistik() {
       ) : (
         // TABLE SUPERADMIN
         <>
-          {!selectedLab && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {labList.map((lab) => (
-                <button
-                  key={lab.kode_ruangan}
-                  type="button"
-                  onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
-                  className="p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition"
-                >
-                  <p className="font-semibold text-primary">{lab.nama_lab}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {lab.kode_ruangan}
-                  </p>
-                </button>
-              ))}
+          {isSuperAdmin && !selectedLab && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {labList
+                  .slice()
+                  .sort((a, b) => String(a.nama_lab).localeCompare(String(b.nama_lab)))
+                  .map((lab) => (
+                    <div
+                      key={lab.kode_ruangan}
+                      className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
+                      onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
+                    >
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="p-3 bg-primary/20 rounded-lg">
+                          <Building2 className="w-6 h-6 text-primary" />
+                        </div>
+
+                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                      </div>
+
+                      <h3 className="font-semibold text-lg">{lab.nama_lab}</h3>
+
+                      <p className="text-sm text-muted-foreground">
+                        {lab.kode_ruangan} — {lab.kode_bagian}
+                      </p>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
 
-          {selectedLab && (
-            <>
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  Menampilkan data untuk{" "}
-                  <span className="font-semibold text-primary">
-                    {selectedLab.nama_lab}
-                  </span>
-                </p>
-
+          {isSuperAdmin && selectedLab && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
                 <Button
-                  variant="outline"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setSelectedKodeRuangan(null)}
+                  className="shrink-0"
                 >
-                  Ganti Lab
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
+
+                <div>
+                  <h1 className="text-3xl font-bold text-primary">
+                    {selectedLab.nama_lab}
+                  </h1>
+
+                  <p className="text-muted-foreground mt-1">
+                    {selectedLab.kode_ruangan} – {selectedLab.kode_bagian}
+                  </p>
+                </div>
               </div>
 
+              {/* SEARCH */}
+              {(isAdminLab || selectedLab) && (
+                <div className="w-full mt-4 px-2">
+                  <Input
+                    placeholder="Cari Penggunaan..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full max-w-none"
+                  />
+                </div>
+              )}
+
+              {/* TABEL */}
               <div className="overflow-x-auto border rounded-md">
                 <table className="min-w-full text-sm">
                   <thead className="bg-muted">
@@ -656,7 +684,7 @@ export default function PenerimaanLogistik() {
                   </tbody>
                 </table>
               </div>
-            </>
+            </div>
           )}
         </>
       )}

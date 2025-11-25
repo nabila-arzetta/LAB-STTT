@@ -3,7 +3,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/DataTable";
-import { ArrowLeft, AlertTriangle, Building2, ChevronRight, Search } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Building2, ChevronRight, Search,Package } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { listInventaris, type StokInventaris } from "@/services/inventaris.service";
 import { listLabs, type LabDTO } from "@/services/lab.service";
@@ -64,6 +64,17 @@ export default function DataInventaris() {
       .finally(() => active && setLoading(false));
 
     return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    const reload = () => {
+      listInventaris().then((data) => {
+        setInventaris(Array.isArray(data) ? data : []);
+      });
+    };
+
+    window.addEventListener("stok-updated", reload);
+    return () => window.removeEventListener("stok-updated", reload);
   }, []);
 
   const filteredTransfer = useMemo(() => {
@@ -151,21 +162,6 @@ export default function DataInventaris() {
 
   const userLabId = getUserLab();
 
-  // Filter lab aktif dan akses user
-  // const availableLabs = useMemo(() => {
-  //   const activeLabs = labs.filter((l) => (l.status ?? "aktif") === "aktif");
-  //   if (!isAdmin()) {
-  //     // jika bukan superadmin, hanya lab yg sesuai userLabId (kode_bagian atau kode_ruangan)
-  //     if (!userLabId) return activeLabs;
-  //     return activeLabs.filter((l) =>
-  //       String(l.kode_ruangan ?? "").toLowerCase() === String(userLabId).toLowerCase()
-  //       || String(l.kode_bagian ?? "").toLowerCase() === String(userLabId).toLowerCase()
-  //       || String(l.kode ?? "").toLowerCase() === String(userLabId).toLowerCase()
-  //     );
-  //   }
-  //   // superadmin bisa lihat semua aktif
-  //   return activeLabs;
-  // }, [labs, isAdmin, userLabId]);
   const availableLabs = useMemo(() => {
     return labs;
   }, [labs]);
@@ -291,33 +287,29 @@ export default function DataInventaris() {
               const pick = lab.kode_ruangan ?? lab.kode_bagian ?? lab.kode ?? null;
 
               return (
-                <Card
+                <div
                   key={lab.id ?? `lab-${index}`}
-                  className="p-6 border rounded-2xl cursor-pointer hover:shadow-lg transition-all duration-200
-                    flex items-center justify-between
-                  "
+                  className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
                   onClick={() => pick && setSelectedLabKode(String(pick))}
                 >
-                  <div className="flex items-center gap-4">
-
-                    <div className="w-16 h-16 rounded-2xl bg-gray-200/70 flex items-center justify-center">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-primary/20 rounded-lg">
                       <Building2 className="w-6 h-6 text-primary" />
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-xl font-bold text-[#0C2340]">
-                        {lab.nama}
-                      </span>
-                      <span className="text-base text-gray-400 font-medium -mt-1">
-                        {lab.kode_bagian ?? lab.kode ?? "-"}
-                      </span>
-                    </div>
+
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                </Card>
+
+                  <h3 className="font-semibold text-lg">{lab.nama}</h3>
+
+                  <p className="text-sm text-muted-foreground">
+                    {lab.kode_bagian ?? lab.kode_ruangan ?? lab.kode ?? "-"}
+                  </p>
+                </div>
               );
             })}
-
           </div>
+
         )}
       </div>
     );
@@ -356,10 +348,6 @@ export default function DataInventaris() {
           {/* TAB INVENTARIS */}
           <Button
             variant={activeTab === "inventaris" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${activeTab === "inventaris"
-              ? "bg-primary text-white"
-              : "border-primary text-primary"
-              }`}
             onClick={() => setActiveTab("inventaris")}
           >
             Inventaris Barang
@@ -368,10 +356,6 @@ export default function DataInventaris() {
           {/* TAB TRANSFER */}
           <Button
             variant={activeTab === "transfer" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${activeTab === "transfer"
-              ? "bg-primary text-white"
-              : "border-primary text-primary"
-              }`}
             onClick={() => setActiveTab("transfer")}
           >
             Transfer Barang

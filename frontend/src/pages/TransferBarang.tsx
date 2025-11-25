@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, CheckCircle2, XCircle } from "lucide-react";
+import { Plus, CheckCircle2, XCircle, ArrowLeft, Building2, ChevronRight} from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -329,6 +329,9 @@ export default function TransferBarang() {
       setIsApproveOpen(false);
       setApproveTarget(null);
       loadAll();
+
+      window.dispatchEvent(new Event("stok-updated"));
+      
     } catch (err: any) {
       toast({
         title: "Gagal menyetujui transfer",
@@ -400,9 +403,6 @@ export default function TransferBarang() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-primary">Transfer Barang</h1>
-          <p className="text-muted-foreground">
-            Kelola perpindahan barang antar laboratorium
-          </p>
           {isSuperAdmin && (
             <p className="text-xs text-muted-foreground mt-1">
               {selectedLab
@@ -550,22 +550,30 @@ export default function TransferBarang() {
       {isSuperAdmin && !selectedLab && (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {labs.map((lab) => (
-              <button
-                key={lab.kode_ruangan}
-                type="button"
-                onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
-                className="w-full text-left border rounded-lg p-4 hover:border-primary hover:bg-primary/5 transition-colors"
-              >
-                <p className="font-semibold text-primary">{lab.nama_lab}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Kode ruang: {lab.kode_ruangan}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Kode bagian: {lab.kode_bagian}
-                </p>
-              </button>
-            ))}
+            {labs
+              .slice()
+              .sort((a, b) => String(a.nama_lab).localeCompare(String(b.nama_lab)))
+              .map((lab) => (
+                <div
+                  key={lab.kode_ruangan}
+                  className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
+                  onClick={() => setSelectedKodeRuangan(lab.kode_ruangan)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-primary/20 rounded-lg">
+                      <Building2 className="w-6 h-6 text-primary" />
+                    </div>
+
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  </div>
+
+                  <h3 className="font-semibold text-lg">{lab.nama_lab}</h3>
+
+                  <p className="text-sm text-muted-foreground">
+                    {lab.kode_ruangan} — {lab.kode_bagian}
+                  </p>
+                </div>
+              ))}
           </div>
         </div>
       )}
@@ -573,6 +581,30 @@ export default function TransferBarang() {
       {/* ====== TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB ====== */}
       {(isAdminLab || selectedLab) && (
         <>
+          {/* Header */}
+          <div className="flex items-center gap-4">
+          {isSuperAdmin && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedKodeRuangan(null)}
+              className="shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          )}
+
+          <div>
+            <h1 className="text-3xl font-bold text-primary">
+              {selectedLab?.nama_lab ?? "Laboratorium"}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              {selectedLab?.kode_bagian ?? ""}
+              {selectedLab?.lokasi ? ` - ${selectedLab.lokasi}` : ""}
+            </p>
+          </div>
+        </div>
+
           {/* TAB SWITCHER */}
           <div className="flex justify-between items-center gap-2 border-b pb-2">
             <div className="flex gap-2">
@@ -590,16 +622,6 @@ export default function TransferBarang() {
                 Permintaan Masuk
               </Button>
             </div>
-
-            {isSuperAdmin && selectedLab && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedKodeRuangan(null)}
-              >
-                Ganti Lab
-              </Button>
-            )}
           </div>
 
           {/* TABEL */}
@@ -651,7 +673,11 @@ export default function TransferBarang() {
                         </td>
                         <td className="p-3">{d?.kode_barang ?? "-"}</td>
                         <td className="p-3">{d?.nama_barang ?? "-"}</td>
-                        <td className="p-3">{d?.quantity ?? "-"}</td>
+                        <td className="p-3">
+                          {t.status === "partial_approved"
+                            ? `${d?.qty_approved ?? 0} / ${d?.quantity}`
+                            : d?.quantity ?? "-"}
+                        </td>
                         <td className="p-3">{d?.satuan ?? "-"}</td>
                         <td className="p-3">{t.keterangan ?? "-"}</td>
                         <td className="p-3">

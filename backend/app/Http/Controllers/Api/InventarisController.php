@@ -74,13 +74,6 @@ class InventarisController extends Controller
             $item->kode_bagian = $lab->kode_bagian ?? null;
             $item->lokasi = $lab->lokasi ?? null;
 
-            // Kalkulasi stok_akhir sesuai rumus yang diinginkan
-            $item->stok_akhir =
-                intval($item->total_logistik_masuk ?? 0)
-                - intval($item->total_penggunaan ?? 0)
-                - intval($item->total_transfer_masuk ?? 0)
-                + intval($item->total_transfer_keluar ?? 0);
-
             return $item;
         });
 
