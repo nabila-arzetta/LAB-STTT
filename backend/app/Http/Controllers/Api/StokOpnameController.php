@@ -16,17 +16,19 @@ class StokOpnameController extends Controller
         $user = auth()->user();
         $role = $user->role;
 
-        // SUPERADMIN menerima ?lab=kode_ruangan
-        $paramLab = strtoupper($request->query('lab', ''));
+        // SUPERADMIN mengirim ?lab=KODE_BAGIAN
+        $paramBagian = strtoupper($request->query('lab', ''));
 
         // ========================= SUPERADMIN =========================
         if ($role === 'superadmin') {
 
+            $paramRuangan = strtoupper($request->query('lab', ''));
+
             $query = DB::table('view_stok_opname')
                 ->orderBy('tanggal', 'desc');
 
-            if ($paramLab) {
-                $query->where('kode_ruangan', $paramLab);
+            if ($paramRuangan) {
+                $query->where('kode_ruangan', $paramRuangan);
             }
 
             return response()->json([
@@ -35,18 +37,31 @@ class StokOpnameController extends Controller
             ]);
         }
 
+
         // ========================= ADMIN LAB =========================
         if ($role === 'admin_lab') {
 
-            if (!$user->kode_ruangan) {
+            if (!$user->kode_bagian) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Admin lab tidak memiliki kode_ruangan"
+                    'message' => "Admin lab tidak memiliki kode_bagian"
                 ], 400);
             }
 
+            // Mapping kode_bagian → kode_ruangan asli
+            $lab = DB::table('master_lab')->where('kode_bagian', $user->kode_bagian)->first();
+
+            if (!$lab) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Lab tidak ditemukan untuk kode_bagian {$user->kode_bagian}"
+                ], 400);
+            }
+
+            $kodeRuangan = $lab->kode_ruangan;  // contoh: L-BHS
+
             $data = DB::table('view_stok_opname')
-                ->where('kode_ruangan', $user->kode_ruangan)
+                ->where('kode_ruangan', $kodeRuangan)
                 ->orderBy('tanggal', 'desc')
                 ->get();
 
@@ -56,6 +71,7 @@ class StokOpnameController extends Controller
             ]);
         }
 
+        // ========================= ROLE LAIN =========================
         return response()->json([
             'success' => false,
             'message' => "Role tidak diizinkan"
@@ -70,40 +86,56 @@ class StokOpnameController extends Controller
         $user = auth()->user();
         $role = $user->role;
 
-        // ================= SUPERADMIN =================
+        // SUPERADMIN memilih ?lab=KODE_BAGIAN
         if ($role === 'superadmin') {
 
-            $lab = strtoupper($request->query('lab', ''));
+            $bagian = strtoupper($request->query('lab', ''));
 
-            if (!$lab) {
+            if (!$bagian) {
                 return response()->json([
                     "success" => false,
-                    "message" => "Superadmin wajib memilih lab (?lab=KODE_RUANGAN)"
+                    "message" => "Superadmin wajib memilih lab (?lab=KODE_BAGIAN)"
                 ], 400);
             }
+
+            $lab = DB::table('master_lab')->where('kode_bagian', $bagian)->first();
+            if (!$lab) {
+                return response()->json([
+                    "success" => true,
+                    "data"    => []
+                ]);
+            }
+
+            $kodeRuangan = $lab->kode_ruangan;
         }
 
-        // ================= ADMIN LAB =================
+        // ADMIN LAB
         else if ($role === 'admin_lab') {
 
-            if (!$user->kode_ruangan) {
+            if (!$user->kode_bagian) {
                 return response()->json([
                     'success' => false,
-                    'message' => "Admin lab tidak memiliki kode_ruangan"
+                    'message' => "Admin lab tidak memiliki kode_bagian"
                 ], 400);
             }
 
-            // LAB langsung dari user
-            $lab = $user->kode_ruangan;
+            $lab = DB::table('master_lab')->where('kode_bagian', $user->kode_bagian)->first();
+            if (!$lab) {
+                return response()->json([
+                    "success" => true,
+                    "data"    => []
+                ]);
+            }
+
+            $kodeRuangan = $lab->kode_ruangan;  // L-BHS
         }
 
-        // =============== AMBIL BARANG UNTUK OPNAME ==================
+        // AMBIL BARANG
         $barang = DB::table('master_barang AS mb')
-            ->leftJoin('view_stok_inventaris AS vs', function ($join) use ($lab) {
+            ->leftJoin('view_stok_inventaris AS vs', function ($join) use ($kodeRuangan) {
                 $join->on('vs.kode_barang', '=', 'mb.kode_barang')
-                     ->where('vs.kode_ruangan', '=', $lab);
+                     ->where('vs.kode_ruangan', '=', $kodeRuangan);
             })
-            ->where('mb.kode_ruangan', '=', $lab)
             ->select(
                 'mb.kode_barang',
                 'mb.nama_barang',
@@ -125,24 +157,36 @@ class StokOpnameController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kode_ruangan' => 'required|string',
+            'kode_ruangan' => 'required|string',  // FE kirim kode_bagian, tapi BE harus mapping
             'barang' => 'required|array|min:1',
             'barang.*.kode_barang'  => 'required|string',
             'barang.*.stok_sistem'  => 'required|integer|min:0',
             'barang.*.stok_fisik'   => 'required|integer|min:0',
         ]);
 
+        // Convert FE kode_ruangan (yang sebenarnya kode_bagian) ke kode_ruangan asli
+        $lab = DB::table('master_lab')->where('kode_bagian', $request->kode_ruangan)->first();
+        if (!$lab) {
+            return response()->json([
+                'success' => false,
+                'message' => "Kode lab tidak valid (kode_bagian: {$request->kode_ruangan})"
+            ], 400);
+        }
+
+        $kodeRuanganAsli = $lab->kode_ruangan;
+
         DB::beginTransaction();
 
         try {
-
+            // insert opname
             $idOpname = DB::table('stok_opname')->insertGetId([
-                'kode_ruangan' => $request->kode_ruangan,
+                'kode_ruangan' => $kodeRuanganAsli,
                 'tanggal'      => now(),
                 'created_at'   => now(),
                 'updated_at'   => now()
             ]);
 
+            // insert detail
             foreach ($request->barang as $item) {
 
                 $selisih = $item['stok_fisik'] - $item['stok_sistem'];
@@ -170,7 +214,6 @@ class StokOpnameController extends Controller
             ]);
 
         } catch (\Throwable $e) {
-
             DB::rollBack();
 
             return response()->json([
@@ -187,25 +230,33 @@ class StokOpnameController extends Controller
     {
         $request->validate([
             'tahun' => 'required|integer',
-            'lab'   => 'required|string',
+            'lab'   => 'required|string',   // kode_bagian dari FE
             'bulan' => 'nullable|integer|min:1|max:12'
         ]);
 
-        $lab = strtoupper($request->lab);
+        // map kode_bagian → kode_ruangan
+        $lab = DB::table('master_lab')->where('kode_bagian', $request->lab)->first();
+
+        if (!$lab) {
+            return response()->json([
+                "success" => true,
+                "data"    => []
+            ]);
+        }
+
+        $kodeRuangan = $lab->kode_ruangan;
 
         $query = DB::table('view_stok_opname')
-            ->where('kode_ruangan', $lab)
+            ->where('kode_ruangan', $kodeRuangan)
             ->whereYear('tanggal', $request->tahun);
 
         if ($request->bulan) {
             $query->whereMonth('tanggal', $request->bulan);
         }
 
-        $data = $query->orderBy('tanggal', 'asc')->get();
-
         return response()->json([
             "success" => true,
-            "data"    => $data
+            "data"    => $query->orderBy('tanggal', 'asc')->get()
         ]);
     }
 }

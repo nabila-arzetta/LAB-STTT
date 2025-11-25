@@ -54,8 +54,10 @@ type OpnameRowFromApi = {
   tanggal: string;
   kode_ruangan: string;
   nama_lab: string;
+  id_detail: number;
   kode_barang: string;
   nama_barang: string;
+  kategori: string | null;
   satuan: string | null;
   stok_sistem: number;
   stok_fisik: number;
@@ -110,53 +112,45 @@ export default function StokOpname() {
 
   /* ------------------ Helper: fetch profile if needed ------------------ */
   const fetchProfileIfNeeded = async () => {
-    // jika authUser sudah punya kode_ruangan, kita done
-    if (authUser?.kode_ruangan) {
-      setAdminLabKodeRuangan(authUser.kode_ruangan);
-      setUserLoaded(true);
-      setSelectedLabKode((prev) => (isAdminLab ? authUser.kode_ruangan : prev));
-      return;
-    }
+  if (!isAdminLab) {
+    setUserLoaded(true);
+    return;
+  }
 
-    // jika role bukan admin_lab, tidak perlu ambil kode_ruangan
-    if (!isAdminLab) {
-      setUserLoaded(true);
-      return;
-    }
+  if (!token) {
+    setUserLoaded(true);
+    return;
+  }
 
-    // fallback: fetch /api/me untuk mendapatkan detail user lengkap
-    if (!token) {
-      setUserLoaded(true);
-      return;
-    }
+  try {
+    const res = await fetch("/api/me", { headers });
+    const json = await res.json();
 
-    try {
-      const res = await fetch("/api/me", { headers });
-      if (!res.ok) throw new Error("Gagal memuat profil");
-      const json = await res.json();
-      // asumsikan backend return { success: true, data: { user: { kode_ruangan, ... } } } atau { kode_ruangan, ... }
-      const dataUser = json?.data?.user ?? json?.data ?? json;
-      const kode_ruangan = dataUser?.kode_ruangan ?? null;
+    const dataUser = json?.data?.user ?? json?.data ?? json;
 
-      if (kode_ruangan) {
-        setAdminLabKodeRuangan(kode_ruangan);
-        // jika useAuth punya setUser, update supaya konsisten
-        try {
-          if (setAuthUser) {
-            setAuthUser({ ...authUser, kode_ruangan });
-          }
-        } catch (_) {}
+    // CARI KODE LAB DI SEMUA TEMPAT YANG MUNGKIN
+    const kodeRuangan =
+      dataUser?.kode_ruangan ??
+      dataUser?.kode_bagian ??
+      dataUser?.lab?.kode_ruangan ??
+      dataUser?.lab?.kode_bagian ??
+      null;
+
+    if (kodeRuangan) {
+      const normalized = String(kodeRuangan).toUpperCase();
+      setAdminLabKodeRuangan(normalized);
+
+      if (setAuthUser) {
+        setAuthUser({ ...authUser, kode_ruangan: normalized });
       }
-    } catch (e) {
-      console.warn("fetchProfileIfNeeded:", e);
-    } finally {
-      setUserLoaded(true);
-      // juga set selectedLabKode jika admin
-      setSelectedLabKode((prev) =>
-        prev ?? (isAdminLab && adminLabKodeRuangan ? adminLabKodeRuangan : prev)
-      );
     }
-  };
+  } catch (e) {
+    console.warn("fetchProfileIfNeeded:", e);
+  } finally {
+    setUserLoaded(true);
+  }
+};
+
 
   /* ------------------ API LOAD FUNCTIONS ------------------ */
   // LOAD OPNAME
@@ -399,12 +393,13 @@ export default function StokOpname() {
   const openStartOpname = async () => {
     const labKode = isAdminLab ? adminLabKodeRuangan : selectedLabKode;
     const data = await loadBarangForLab(labKode);
-    const items: OpnameItem[] = data.map((b) => ({
-      kode_barang: b.kode_barang,
-      nama_barang: b.nama_barang,
-      stok_sistem: b.stok_akhir ?? 0,
-      stok_fisik: b.stok_akhir ?? 0,
-    }));
+    const items: OpnameItem[] = data.map((b: any) => ({
+    kode_barang: b.kode_barang,
+    nama_barang: b.nama_barang,
+    stok_sistem: b.stok_sistem ?? 0,
+    stok_fisik: b.stok_sistem ?? 0,
+  }));
+
     setOpnameItems(items);
     setDialogOpen(true);
   };
@@ -488,6 +483,11 @@ export default function StokOpname() {
     if (loading) return <p className="p-6">Memuat data...</p>;
 
     if (!selectedLabKode) {
+      // Sort based on nama_lab ascending
+      const sortedLabs = [...labs].sort((a, b) =>
+        a.nama_lab.localeCompare(b.nama_lab)
+      );
+
       return (
         <div className="space-y-6">
           <div>
@@ -496,7 +496,7 @@ export default function StokOpname() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {labs.map((lab) => (
+            {sortedLabs.map((lab) => (
               <div
                 key={lab.kode_ruangan}
                 className="p-6 border rounded-lg cursor-pointer hover:shadow-md"
@@ -517,6 +517,7 @@ export default function StokOpname() {
         </div>
       );
     }
+
 
     const lab = labs.find((l) => l.kode_ruangan === selectedLabKode);
     const filteredByLab = opnameData.filter((o) => o.kode_ruangan === selectedLabKode);
@@ -609,7 +610,7 @@ export default function StokOpname() {
                 </tr>
               ) : (
                 filteredByLab.map((item) => (
-                  <tr key={`${item.id_opname}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
+                  <tr key={`${item.id_detail}-${item.id_detail}`} className="border-b hover:bg-muted/40">
                     <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
@@ -778,7 +779,7 @@ export default function StokOpname() {
                 </tr>
               ) : (
                 filteredByLab.map((item) => (
-                  <tr key={`${item.id_opname}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
+                  <tr key={item.id_detail} className="border-b hover:bg-muted/40">
                     <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
