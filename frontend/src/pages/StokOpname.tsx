@@ -73,7 +73,55 @@ type Lab = {
   lokasi?: string;
 };
 
-/* -------------------- Component -------------------- */
+const LabHeader = ({
+  title,
+  subtitle,
+  kode,
+  onBack,
+}: {
+  title: string;
+  subtitle?: string;
+  kode?: string;
+  onBack?: () => void;
+}) => {
+  return (
+    <div className="space-y-4">
+      {/* BARIS 1: JUDUL HALAMAN */}
+      <h1 className="text-2xl font-bold text-primary">
+        {title}
+      </h1>
+
+      {/* BARIS 2–3: INFO LAB */}
+      {subtitle && (
+        <div className="flex items-start gap-3 pl-1">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="shrink-0 -mt-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          )}
+
+          <div className="leading-tight">
+            <p className="text-base font-semibold text-foreground">
+              {subtitle}
+            </p>
+            {kode && (
+              <p className="text-sm text-muted-foreground -mt-0.5">
+                {kode}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ------------------ Component -------------------- */
 export default function StokOpname() {
   const { user: authUser, setUser: setAuthUser } = useAuth();
   const [userLoaded, setUserLoaded] = useState(false);
@@ -97,6 +145,7 @@ export default function StokOpname() {
   const [selectedLabKode, setSelectedLabKode] = useState<string | null>(
     isAdminLab ? adminLabKodeRuangan : null
   );
+  const activeLab = labs.find((l) => l.kode_ruangan === selectedLabKode);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState<boolean | null>(null);
@@ -569,17 +618,14 @@ export default function StokOpname() {
 
   // Superadmin view
   if (isSuperadmin) {
+    const sortedLabs = [...labs].sort((a, b) =>
+      a.nama_lab.localeCompare(b.nama_lab)
+    );
 
     if (!selectedLabKode) {
-      // Sort based on nama_lab ascending
-      const sortedLabs = [...labs].sort((a, b) => a.nama_lab.localeCompare(b.nama_lab));
-
       return (
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-primary">Stok Opname</h1>
-            <p className="text-muted-foreground">Pilih laboratorium untuk melihat riwayat stok opname.</p>
-          </div>
+          <LabHeader title="Stok Opname" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedLabs.map((lab) => (
@@ -617,15 +663,14 @@ export default function StokOpname() {
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedLabKode(null)}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-primary">{lab?.nama_lab}</h1>
-            <p className="text-muted-foreground">{lab?.kode_ruangan}</p>
-          </div>
-        </div>
+
+        <LabHeader
+          title="Stok Opname"
+          subtitle={activeLab?.nama_lab}
+          kode={activeLab?.kode_ruangan}
+          onBack={() => setSelectedLabKode(null)}
+        />
+
 
         {/* FILTER */}
         <div className="flex items-center justify-between">
@@ -703,8 +748,13 @@ export default function StokOpname() {
                 </tr>
               ) : (
                 sortedOpname.map((item) => (
-                  <tr key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
-                    <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
+                  <tr
+                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                    className="border-b hover:bg-muted/40"
+                  >
+                    <td className="p-3">
+                      {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}
+                    </td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
                     <td className="p-3">{item.stok_fisik}</td>
@@ -715,13 +765,14 @@ export default function StokOpname() {
             </tbody>
           </table>
         </div>
+
       </div>
     );
+
   }
 
   // ADMIN LAB VIEW
   if (isAdminLab) {
-    // opnameData already loaded for this admin lab by loadOpname
     const filteredByLab = opnameData;
 
     const sortedOpname = [...filteredByLab].sort(
@@ -730,23 +781,28 @@ export default function StokOpname() {
 
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Stok Opname - {adminLabKodeRuangan ?? "—"}</h1>
-            <p className="text-muted-foreground mt-2">Pengecekan dan penyesuaian stok.</p>
-          </div>
+        <div className="flex items-center justify-between">
+          <LabHeader
+            title="Stok Opname"
+            subtitle={
+              labs.find((l) => l.kode_ruangan === adminLabKodeRuangan)?.nama_lab
+            }
+            kode={adminLabKodeRuangan}
+          />
 
           <Button onClick={openStartOpname}>
             <Plus className="w-4 h-4" /> Mulai Stok Opname
           </Button>
         </div>
 
-        {/* Dialog Start */}
+        {/* ✅ DIALOG */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Mulai Stok Opname</DialogTitle>
-              <DialogDescription>Masukkan stok fisik setiap barang.</DialogDescription>
+              <DialogDescription>
+                Masukkan stok fisik setiap barang.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="max-h-[420px] overflow-y-auto border rounded-md p-3 mt-2">
@@ -774,7 +830,12 @@ export default function StokOpname() {
                               type="number"
                               min={0}
                               value={item.stok_fisik}
-                              onChange={(e) => handleChangeItem(item.kode_barang, Number(e.target.value))}
+                              onChange={(e) =>
+                                handleChangeItem(
+                                  item.kode_barang,
+                                  Number(e.target.value)
+                                )
+                              }
                             />
                           </td>
                           <td className="p-2">
@@ -803,9 +864,10 @@ export default function StokOpname() {
           </DialogContent>
         </Dialog>
 
-        {/* History */}
+        {/* ✅ RIWAYAT */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
+
           <div className="flex items-center gap-2">
             <Select onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[120px]">
@@ -813,18 +875,8 @@ export default function StokOpname() {
               </SelectTrigger>
               <SelectContent>
                 {[
-                  "Januari",
-                  "Februari",
-                  "Maret",
-                  "April",
-                  "Mei",
-                  "Juni",
-                  "Juli",
-                  "Agustus",
-                  "September",
-                  "Oktober",
-                  "November",
-                  "Desember",
+                  "Januari","Februari","Maret","April","Mei","Juni",
+                  "Juli","Agustus","September","Oktober","November","Desember",
                 ].map((bln, i) => (
                   <SelectItem key={i} value={String(i + 1)}>
                     {bln}
@@ -849,10 +901,11 @@ export default function StokOpname() {
               </SelectContent>
             </Select>
 
-            <Button onClick={() => handleExportCsv(adminLabKodeRuangan)} className="bg-primary text-white">
+            <Button onClick={() => handleExportCsv(adminLabKodeRuangan)}>
               Download CSV
             </Button>
-            <Button onClick={() => handleExportPdf(adminLabKodeRuangan)} className="bg-red-600 text-white">
+
+            <Button onClick={() => handleExportPdf(adminLabKodeRuangan)}>
               Download PDF
             </Button>
           </div>
@@ -878,18 +931,28 @@ export default function StokOpname() {
                 </tr>
               ) : (
                 sortedOpname.map((item) => (
-                  <tr key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
-                    <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
+                  <tr
+                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                    className="border-b hover:bg-muted/40"
+                  >
+                    <td className="p-3">
+                      {format(new Date(item.tanggal), "dd MMMM yyyy", {
+                        locale: idLocale,
+                      })}
+                    </td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
                     <td className="p-3">{item.stok_fisik}</td>
-                    <td className="p-3">{getSelisihBadge(item.selisih)}</td>
+                    <td className="p-3">
+                      {getSelisihBadge(item.selisih)}
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
       </div>
     );
   }
