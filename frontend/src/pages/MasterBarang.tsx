@@ -16,11 +16,12 @@ import {
   Package,
   ChevronRight,
   Plus,
-  Edit,
+  Pencil,
   Trash2,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 /** ==== Types ==== */
 type Lab = {
@@ -115,6 +116,28 @@ export const MasterBarang: React.FC = () => {
     };
   }, []);
 
+  // Ambil user
+  const { user: authUser } = useAuth();
+
+  // Auto pilih lab untuk admin
+  useEffect(() => {
+    if (!authUser) return;
+    if (authUser.role !== "admin_lab") return;
+    if (labs.length === 0) return;
+
+    const labUser = labs.find(
+      (l) =>
+        String(l.kode_bagian).toUpperCase() ===
+        String(authUser.kode_bagian).toUpperCase()
+    );
+
+    if (labUser) {
+      const id = getLabId(labUser);
+      if (id) setSelectedLabId(id); // Langsung buka tabel
+    }
+  }, [labs, authUser]);
+
+
   /** ==== Fetch items for selected lab ==== */
   const fetchItems = async (labId: number | null, q?: string): Promise<void> => {
     if (!labId) return;
@@ -159,9 +182,33 @@ export const MasterBarang: React.FC = () => {
     return labs.find((l) => getLabId(l) === selectedLabId) ?? null;
   }, [labs, selectedLabId]);
 
-  // Stats
-  const totalItems = items.length;
-  const activeItems = items.filter((i) => (i.status ?? "").toLowerCase() === "aktif").length;
+  /** ---- FILTER ALL COLUMNS (FAST SEARCH FE) ---- */
+  const filteredItems = useMemo(() => {
+    if (!searchTerm.trim()) return items;
+
+    const q = searchTerm.toLowerCase();
+
+    return items.filter((i) => {
+      const text = [
+        i.kode_barang,
+        i.nama_barang,
+        i.satuan,
+        i.kategori,
+        i.deskripsi,
+        i.status,
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return text.includes(q);
+    });
+  }, [items, searchTerm]);
+
+  /** ---- FASTER STATS (NO WAITING) ---- */
+  const totalItems = filteredItems.length;
+  const activeItems = filteredItems.filter(
+    (i) => (i.status ?? "").toLowerCase() === "aktif"
+  ).length;
 
   /** ==== Table columns (including deskripsi) ==== */
   const columns = [
@@ -386,13 +433,24 @@ export const MasterBarang: React.FC = () => {
           {/* When a lab is selected: header + stats + table */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => setSelectedLabId (null)} className="shrink-0">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
+              {/* TOMBOL BACK HANYA UNTUK SUPERADMIN */}
+              {authUser?.role === "superadmin" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedLabId(null)}
+                  className="shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              )}
+
               <div>
-                <h1 className="text-3xl font-bold text-primary">{selectedLab?.nama_lab ?? "Lab"}</h1>
+                <h1 className="text-2xl font-bold text-primary">
+                  {selectedLab?.nama_lab ?? "Lab"}
+                </h1>
                 <p className="text-muted-foreground mt-1">
-                  Master data barang — {selectedLab?.singkatan ?? selectedLab?.kode_bagian ?? "-"}
+                  {selectedLab?.kode_ruangan} — {selectedLab?.kode_bagian}
                 </p>
               </div>
             </div>
@@ -411,58 +469,97 @@ export const MasterBarang: React.FC = () => {
                 </DialogHeader>
 
                 <form onSubmit={handleCreate} className="py-4 space-y-4">
+
+                  {/* Kode Barang */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Kode Barang</label>
+                      <label htmlFor="kode_barang" className="text-sm font-medium">
+                        Kode Barang
+                      </label>
                       <input
+                        id="kode_barang"
+                        name="kode_barang"
                         type="text"
                         required
                         value={form.kode_barang}
-                        onChange={(e) => setForm((f) => ({ ...f, kode_barang: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, kode_barang: e.target.value }))
+                        }
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="Misal: BRG-BHS-001"
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Nama Barang</label>
+                      <label htmlFor="nama_barang" className="text-sm font-medium">
+                        Nama Barang
+                      </label>
                       <input
+                        id="nama_barang"
+                        name="nama_barang"
                         type="text"
                         required
                         value={form.nama_barang}
-                        onChange={(e) => setForm((f) => ({ ...f, nama_barang: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, nama_barang: e.target.value }))
+                        }
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="Misal: Speaker Aktif"
                       />
                     </div>
                   </div>
 
+                  {/* Satuan - Kategori - Status */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Satuan</label>
+                      <label htmlFor="satuan" className="text-sm font-medium">
+                        Satuan
+                      </label>
                       <input
+                        id="satuan"
+                        name="satuan"
                         type="text"
                         value={form.satuan}
-                        onChange={(e) => setForm((f) => ({ ...f, satuan: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, satuan: e.target.value }))
+                        }
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="Unit, Pcs, Set..."
                       />
                     </div>
+
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Kategori</label>
+                      <label htmlFor="kategori" className="text-sm font-medium">
+                        Kategori
+                      </label>
                       <select
+                        id="kategori"
+                        name="kategori"
                         value={form.kategori}
-                        onChange={(e) => setForm((f) => ({ ...f, kategori: e.target.value }))}
+                        onChange={(e) =>
+                          setForm((f) => ({ ...f, kategori: e.target.value }))
+                        }
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="alat">Alat</option>
                         <option value="bahan">Bahan</option>
                       </select>
                     </div>
+
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">Status</label>
+                      <label htmlFor="status_barang" className="text-sm font-medium">
+                        Status
+                      </label>
                       <select
+                        id="status_barang"
+                        name="status_barang"
                         value={form.status_barang}
-                        onChange={(e) => setForm((f) => ({ ...f, status_barang: e.target.value as "aktif" | "nonaktif" }))}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            status_barang: e.target.value as "aktif" | "nonaktif",
+                          }))
+                        }
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="aktif">Aktif</option>
@@ -471,17 +568,25 @@ export const MasterBarang: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Keterangan */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Keterangan</label>
+                    <label htmlFor="keterangan" className="text-sm font-medium">
+                      Keterangan
+                    </label>
                     <textarea
+                      id="keterangan"
+                      name="keterangan"
                       rows={3}
                       value={form.keterangan}
-                      onChange={(e) => setForm((f) => ({ ...f, keterangan: e.target.value }))}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, keterangan: e.target.value }))
+                      }
                       className="w-full px-3 py-2 border rounded-lg resize-none"
                       placeholder="Contoh: Barang baru diterima dari vendor"
                     />
                   </div>
 
+                  {/* Buttons */}
                   <div className="flex justify-end gap-2 pt-2">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Batal
@@ -533,13 +638,15 @@ export const MasterBarang: React.FC = () => {
             </CardHeader>
             <CardContent>
               <DataTable
-                data={items}
+                data={filteredItems}
                 columns={columns}
                 actions={(item: Item) => (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+
+                    {/* EDIT */}
                     <Button
-                      variant="ghost"
-                      size="sm"
+                      size="icon"
+                      variant="outline"
                       disabled={saving}
                       title="Edit Barang"
                       onClick={() => {
@@ -555,13 +662,13 @@ export const MasterBarang: React.FC = () => {
                         setIsEditDialogOpen(true);
                       }}
                     >
-                      <Edit className="w-4 h-4" />
+                      <Pencil className="w-4 h-4" />
                     </Button>
 
+                    {/* DELETE */}
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive"
+                      size="icon"
+                      variant="destructive"
                       disabled={saving}
                       title="Hapus Barang"
                       onClick={() => {
@@ -571,12 +678,19 @@ export const MasterBarang: React.FC = () => {
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
+
                   </div>
                 )}
-                searchPlaceholder="Cari nama barang"
+                searchPlaceholder="Cari kode, nama, kategori, satuan..."
                 onSearch={setSearchTerm}
                 searchTerm={searchTerm}
-                emptyMessage={loadingItems ? "Memuat data…" : searchTerm ? "Tidak ada barang yang cocok dengan kata kunci." : "Belum ada data master barang"}
+                emptyMessage={
+                  loadingItems
+                    ? "Memuat data…"
+                    : searchTerm
+                    ? "Tidak ada data cocok."
+                    : "Belum ada data master barang"
+                }
               />
             </CardContent>
           </Card>
@@ -588,19 +702,55 @@ export const MasterBarang: React.FC = () => {
                 <DialogTitle>Edit Barang</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+
+                {/* Nama Barang */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Nama Barang</label>
-                  <input type="text" required value={form.nama_barang} onChange={(e) => setForm((f) => ({ ...f, nama_barang: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" />
+                  <label htmlFor="edit_nama_barang" className="text-sm font-medium">
+                    Nama Barang
+                  </label>
+                  <input
+                    id="edit_nama_barang"
+                    name="edit_nama_barang"
+                    type="text"
+                    required
+                    value={form.nama_barang}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, nama_barang: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Satuan</label>
-                    <input type="text" value={form.satuan} onChange={(e) => setForm((f) => ({ ...f, satuan: e.target.value }))} className="w-full px-3 py-2 border rounded-lg" placeholder="Satuan" />
+                    <label htmlFor="edit_satuan" className="text-sm font-medium">
+                      Satuan
+                    </label>
+                    <input
+                      id="edit_satuan"
+                      name="edit_satuan"
+                      type="text"
+                      value={form.satuan}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, satuan: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
                   </div>
+
                   <div>
-                    <label className="text-sm font-medium">Kategori</label>
-                    <select value={form.kategori} onChange={(e) => setForm((f) => ({ ...f, kategori: e.target.value }))} className="w-full px-3 py-2 border rounded-lg">
+                    <label htmlFor="edit_kategori" className="text-sm font-medium">
+                      Kategori
+                    </label>
+                    <select
+                      id="edit_kategori"
+                      name="edit_kategori"
+                      value={form.kategori}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, kategori: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
                       <option value="alat">Alat</option>
                       <option value="bahan">Bahan</option>
                     </select>
@@ -608,20 +758,44 @@ export const MasterBarang: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Keterangan</label>
-                  <textarea rows={3} value={form.keterangan} onChange={(e) => setForm((f) => ({ ...f, keterangan: e.target.value }))} className="w-full px-3 py-2 border rounded-lg resize-none" placeholder="Keterangan" />
+                  <label htmlFor="edit_keterangan" className="text-sm font-medium">
+                    Keterangan
+                  </label>
+                  <textarea
+                    id="edit_keterangan"
+                    name="edit_keterangan"
+                    rows={3}
+                    value={form.keterangan}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, keterangan: e.target.value }))
+                    }
+                    className="w-full px-3 py-2 border rounded-lg resize-none"
+                  />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <select value={form.status_barang} onChange={(e) => setForm((f) => ({ ...f, status_barang: e.target.value as "aktif" | "nonaktif" }))} className="w-full px-3 py-2 border rounded-lg">
+                  <label htmlFor="edit_status_barang" className="text-sm font-medium">
+                    Status
+                  </label>
+                  <select
+                    id="edit_status_barang"
+                    name="edit_status_barang"
+                    value={form.status_barang}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        status_barang: e.target.value as "aktif" | "nonaktif",
+                      }))
+                    }
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
                     <option value="aktif">Aktif</option>
                     <option value="nonaktif">Non-Aktif</option>
                   </select>
                 </div>
 
                 <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => { setIsEditDialogOpen(false); setSelectedItem(null); }}>
+                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                     Batal
                   </Button>
                   <Button type="submit" disabled={saving}>
@@ -633,20 +807,43 @@ export const MasterBarang: React.FC = () => {
           </Dialog>
 
           {/* Delete Dialog */}
-          <Dialog open={isDeleteDialogOpen} onOpenChange={(v) => { if (!v) setSelectedItem(null); setIsDeleteDialogOpen(v); }}>
-            <DialogContent className="max-w-sm text-center space-y-4">
+          <Dialog
+            open={isDeleteDialogOpen}
+            onOpenChange={(open) => {
+              setIsDeleteDialogOpen(open);
+              if (!open) setSelectedItem(null);
+            }}
+          >
+            <DialogContent className="max-w-sm text-center" aria-describedby={undefined}>
               <DialogHeader>
-                <DialogTitle>Hapus Barang</DialogTitle>
+                <DialogTitle>Hapus Barang?</DialogTitle>
               </DialogHeader>
-              <p>
+
+              <p className="text-sm text-muted-foreground">
                 Apakah kamu yakin ingin menghapus <b>{selectedItem?.nama_barang}</b>?
               </p>
-              <DialogFooter className="justify-center gap-2">
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Batal</Button>
-                <Button variant="destructive" disabled={saving} onClick={handleDelete}>
-                  {saving ? "Menghapus..." : "Hapus"}
+
+              <div className="flex justify-center gap-2 mt-4">
+                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                  Batal
                 </Button>
-              </DialogFooter>
+
+                <Button
+                  variant="destructive"
+                  disabled={saving}
+                  onClick={handleDelete}
+                  className="flex items-center gap-2"
+                >
+                  {saving ? (
+                    "Menghapus..."
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Hapus
+                    </>
+                  )}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </>

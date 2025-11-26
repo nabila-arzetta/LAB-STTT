@@ -92,6 +92,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/transfer-barang', [TransferBarangController::class, 'store']);
         Route::post('/transfer-barang/{id}/approve', [TransferBarangController::class, 'approve']);
         Route::post('/transfer-barang/{id}/reject', [TransferBarangController::class, 'reject']);
+        Route::put('/transfer-barang/{id}', [TransferBarangController::class, 'update']);
+        Route::delete('/transfer-barang/{id}', [TransferBarangController::class, 'destroy']);
     });
 
     // -------------------- PENERIMAAN LOGISTIK --------------------

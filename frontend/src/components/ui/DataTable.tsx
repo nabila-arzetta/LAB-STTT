@@ -41,9 +41,15 @@ export function DataTable<T extends Record<string, any>>({
     <div className="space-y-4">
       {/* Search */}
       {onSearch && (
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+        <div className="relative w-full">
+          <label htmlFor="datatable-search" className="sr-only">
+            Search
+          </label>
+
           <Input
+            id="datatable-search"
+            name="datatable-search"
+            autoComplete="off"
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => onSearch(e.target.value)}

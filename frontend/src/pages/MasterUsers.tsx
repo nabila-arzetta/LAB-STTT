@@ -369,28 +369,43 @@ const MasterUsers: React.FC = () => {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Nama */}
             <div>
-              <Label>Nama Lengkap</Label>
+              <Label htmlFor="name">Nama Lengkap</Label>
               <Input
+                id="name"
+                name="name"
+                autoComplete="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
             </div>
+
+            {/* Email */}
             <div>
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
+                name="email"
+                autoComplete="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
               />
             </div>
+
+            {/* Password (hanya saat create) */}
             {!editingUser && (
               <div className="relative">
-                <Label>Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
+                    id="password"
+                    name="password"
+                    autoComplete="new-password"
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -404,19 +419,20 @@ const MasterUsers: React.FC = () => {
                     className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
             )}
+
+            {/* Role */}
             <div>
-              <Label>Role</Label>
-              <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
-                <SelectTrigger>
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v })}
+              >
+                <SelectTrigger id="role">
                   <SelectValue placeholder="Pilih role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,19 +442,24 @@ const MasterUsers: React.FC = () => {
               </Select>
             </div>
 
-            {formData.role === 'admin_lab' && (
+            {/* Lab */}
+            {formData.role === "admin_lab" && (
               <div>
-                <Label>Laboratorium</Label>
+                <Label htmlFor="kode_bagian">Laboratorium</Label>
                 <Select
                   value={formData.kode_bagian}
                   onValueChange={(v) => setFormData({ ...formData, kode_bagian: v })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="kode_bagian">
                     <SelectValue placeholder="Pilih laboratorium" />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from(
-                      new Map(labs.filter(lab => lab.kode_bagian).map(lab => [lab.kode_bagian, lab])).values()
+                      new Map(
+                        labs
+                          .filter(lab => lab.kode_bagian)
+                          .map(lab => [lab.kode_bagian, lab])
+                      ).values()
                     ).map((lab) => (
                       <SelectItem key={lab.id_lab} value={lab.kode_bagian}>
                         {lab.nama_lab}
@@ -452,7 +473,7 @@ const MasterUsers: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={resetForm}>Batal</Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Menyimpan...' : editingUser ? 'Perbarui' : 'Tambah'}
+                {loading ? "Menyimpan..." : editingUser ? "Perbarui" : "Tambah"}
               </Button>
             </div>
           </form>

@@ -43,6 +43,7 @@ export default function DataInventaris() {
   const [inventarisPage, setInventarisPage] = useState(1);
   const [transferPage, setTransferPage] = useState(1);
 
+  const { user: authUser } = useAuth();
 
   useEffect(() => {
     let active = true;
@@ -65,6 +66,26 @@ export default function DataInventaris() {
 
     return () => { active = false; };
   }, []);
+
+  // AUTO PILIH LAB UNTUK ADMIN LAB
+  useEffect(() => {
+    if (!authUser) return;
+    if (authUser.role !== "admin_lab") return;
+    if (labs.length === 0) return;
+
+    const kodeUser = String(authUser.kode_bagian ?? "").toLowerCase();
+
+    const userLab = labs.find((l) =>
+      String(l.kode_ruangan ?? l.kode_bagian ?? l.kode ?? "")
+        .toLowerCase() === kodeUser
+    );
+
+    if (userLab) {
+      const pick = userLab.kode_ruangan ?? userLab.kode_bagian ?? userLab.kode;
+      if (pick) setSelectedLabKode(String(pick));
+    }
+  }, [labs, authUser]);
+
 
   useEffect(() => {
     const reload = () => {
@@ -264,7 +285,7 @@ export default function DataInventaris() {
   );
 
   // Render
-  if (!selectedLabKode) {
+  if (authUser?.role === "superadmin" && !selectedLabKode) {
     return (
       <div className="space-y-6">
         <div>
@@ -309,7 +330,6 @@ export default function DataInventaris() {
               );
             })}
           </div>
-
         )}
       </div>
     );
@@ -321,23 +341,28 @@ export default function DataInventaris() {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setSelectedLabKode(null)}
-          className="shrink-0"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
+        {/* TOMBOL BACK HANYA UNTUK SUPERADMIN */}
+        {authUser?.role === "superadmin" && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setSelectedLabKode(null)}
+            className="shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        )}
 
         <div>
-          <h1 className="text-3xl font-bold text-primary">
-            {selectedLab?.nama ?? "Laboratorium"}
+          <h1 className="text-2xl font-bold text-primary">
+            {selectedLab?.nama}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            {selectedLab?.kode_bagian ?? ""}
-            {selectedLab?.lokasi ? ` - ${selectedLab.lokasi}` : ""}
-          </p>
+
+          {selectedLab && (
+            <p className="text-muted-foreground mt-1">
+              {selectedLab?.kode_ruangan} — {selectedLab?.kode_bagian}
+            </p>
+          )}
         </div>
       </div>
 
@@ -348,6 +373,8 @@ export default function DataInventaris() {
           {/* TAB INVENTARIS */}
           <Button
             variant={activeTab === "inventaris" ? "default" : "outline"}
+            className={`rounded-xl px-4 py-2 ${activeTab === "inventaris"
+              }`}
             onClick={() => setActiveTab("inventaris")}
           >
             Inventaris Barang
@@ -356,6 +383,8 @@ export default function DataInventaris() {
           {/* TAB TRANSFER */}
           <Button
             variant={activeTab === "transfer" ? "default" : "outline"}
+            className={`rounded-xl px-4 py-2 ${activeTab === "transfer"
+              }`}
             onClick={() => setActiveTab("transfer")}
           >
             Transfer Barang
@@ -363,72 +392,42 @@ export default function DataInventaris() {
         </div>
       </div>
 
-      {/* === FILTER BAR UNTUK SEMUA TAB === */}
-      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
-
-        {/* === Search Input === */}
-        <div className="flex flex-col w-full md:w-1/3">
-          <label className="text-xs text-muted-foreground mb-1">Pencarian</label>
-
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Cari barang / lab..."
-              className="pl-10 border px-3 py-2 rounded-md w-full"
-              value={searchTransfer}
-              onChange={(e) => setSearchTransfer(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* === Label Tanggal Awal === */}
-        <div className="flex flex-col">
-          <label className="text-xs text-muted-foreground mb-1">Tanggal Awal</label>
-          <input
-            type="date"
-            className="border px-3 py-2 rounded-md"
-            value={filterTanggalAwal}
-            onChange={(e) => setFilterTanggalAwal(e.target.value)}
-          />
-        </div>
-
-        {/* === Label Tanggal Akhir === */}
-        <div className="flex flex-col">
-          <label className="text-xs text-muted-foreground mb-1">Tanggal Akhir</label>
-          <input
-            type="date"
-            className="border px-3 py-2 rounded-md"
-            value={filterTanggalAkhir}
-            onChange={(e) => setFilterTanggalAkhir(e.target.value)}
-          />
-        </div>
-
-        {/* === Status Option === */}
-        <div className="flex flex-col">
-          <label className="text-xs text-muted-foreground mb-1">Status</label>
-          <select
-            className="border px-3 py-2 rounded-md"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="">Semua Status</option>
-            <option value="pending">Menunggu</option>
-            <option value="approved">Disetujui</option>
-            <option value="partial_approved">Disetujui Sebagian</option>
-            <option value="rejected">Ditolak</option>
-            <option value="completed">Selesai</option>
-          </select>
-        </div>
-
-      </div>
-
       {/* === TAB CONTENT === */}
       {activeTab === "inventaris" ? (
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle>Daftar Inventaris Barang</CardTitle>
+
+            {/* === FILTER INVENTARIS === */}
+            <div className="flex flex-col md:flex-row md:items-center gap-3 mt-4">
+
+              {/* Search Inventaris */}
+              <div className="flex flex-col w-full md:w-1/3">
+                <label
+                  htmlFor="inventarisSearch"
+                  className="text-xs text-muted-foreground mb-1"
+                >
+                  Pencarian
+                </label>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+
+                  <input
+                    id="inventarisSearch"
+                    name="inventarisSearch"
+                    type="text"
+                    placeholder="Cari barang..."
+                    className="pl-10 border px-3 py-2 rounded-md w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+            </div>
           </CardHeader>
+
           <CardContent>
             <DataTable
               data={paginatedInventaris}
@@ -440,7 +439,7 @@ export default function DataInventaris() {
               }
             />
 
-            {/* PAGINATION KHUSUS INVENTARIS */}
+            {/* Pagination */}
             {totalInventarisPages > 1 && (
               <div className="flex justify-center mt-4 gap-2">
                 <Button
@@ -470,45 +469,106 @@ export default function DataInventaris() {
                 </Button>
               </div>
             )}
-
-            {/* PAGINATION KHUSUS TRANSFER */}
-            {totalTransferPages > 1 && (
-              <div className="flex justify-center mt-4 gap-2">
-                <Button
-                  variant="outline"
-                  disabled={transferPage === 1}
-                  onClick={() => setTransferPage((p) => p - 1)}
-                >
-                  Prev
-                </Button>
-
-                {Array.from({ length: totalTransferPages }).map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={transferPage === i + 1 ? "default" : "outline"}
-                    onClick={() => setTransferPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-
-                <Button
-                  variant="outline"
-                  disabled={transferPage === totalTransferPages}
-                  onClick={() => setTransferPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-
           </CardContent>
         </Card>
       ) : (
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle>Daftar Transfer Barang Antar Lab</CardTitle>
+
+            {/* === FILTER TRANSFER === */}
+            <div className="flex flex-col md:flex-row md:items-center gap-3 mt-4">
+
+              {/* Search Transfer */}
+              <div className="flex flex-col w-full md:w-1/3">
+                <label
+                  htmlFor="transferSearch"
+                  className="text-xs text-muted-foreground mb-1"
+                >
+                  Pencarian
+                </label>
+
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+
+                  <input
+                    id="transferSearch"
+                    name="transferSearch"
+                    type="text"
+                    placeholder="Cari barang / lab..."
+                    className="pl-10 border px-3 py-2 rounded-md w-full"
+                    value={searchTransfer}
+                    onChange={(e) => setSearchTransfer(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Tanggal Awal */}
+              <div className="flex flex-col">
+                <label
+                  htmlFor="filterTanggalAwal"
+                  className="text-xs text-muted-foreground mb-1"
+                >
+                  Tanggal Awal
+                </label>
+
+                <input
+                  id="filterTanggalAwal"
+                  name="filterTanggalAwal"
+                  type="date"
+                  className="border px-3 py-2 rounded-md"
+                  value={filterTanggalAwal}
+                  onChange={(e) => setFilterTanggalAwal(e.target.value)}
+                />
+              </div>
+
+              {/* Tanggal Akhir */}
+              <div className="flex flex-col">
+                <label
+                  htmlFor="filterTanggalAkhir"
+                  className="text-xs text-muted-foreground mb-1"
+                >
+                  Tanggal Akhir
+                </label>
+
+                <input
+                  id="filterTanggalAkhir"
+                  name="filterTanggalAkhir"
+                  type="date"
+                  className="border px-3 py-2 rounded-md"
+                  value={filterTanggalAkhir}
+                  onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+                />
+              </div>
+
+              {/* Status */}
+              <div className="flex flex-col">
+                <label
+                  htmlFor="filterStatus"
+                  className="text-xs text-muted-foreground mb-1"
+                >
+                  Status
+                </label>
+
+                <select
+                  id="filterStatus"
+                  name="filterStatus"
+                  className="border px-3 py-2 rounded-md"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                >
+                  <option value="">Semua Status</option>
+                  <option value="pending">Menunggu</option>
+                  <option value="approved">Disetujui</option>
+                  <option value="partial_approved">Disetujui Sebagian</option>
+                  <option value="rejected">Ditolak</option>
+                  <option value="completed">Selesai</option>
+                </select>
+              </div>
+
+            </div>
           </CardHeader>
+
           <CardContent>
             {loadingTransfer && (
               <p className="text-muted-foreground text-sm">Memuat data transfer…</p>

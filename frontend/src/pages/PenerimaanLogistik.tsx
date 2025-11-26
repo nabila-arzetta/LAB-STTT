@@ -81,6 +81,10 @@ export default function PenerimaanLogistik() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [search, setSearch] = useState("");
 
+  const [filterTanggalAwal, setFilterTanggalAwal] = useState("");
+  const [filterTanggalAkhir, setFilterTanggalAkhir] = useState("");
+  const [filterKodeBarang, setFilterKodeBarang] = useState("");
+
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Penerimaan | null>(null);
 
@@ -354,16 +358,29 @@ export default function PenerimaanLogistik() {
     }))
   );
 
-  const superSearched = flatSuperRows.filter((r) => {
-    if (!search) return true;
+  const superSearched = flatSuperRows.filter((row) => {
     const q = search.toLowerCase();
 
-    return (
-      r.tanggal.toLowerCase().includes(q) ||
-      r.kode_barang.toLowerCase().includes(q) ||
-      r.nama_barang.toLowerCase().includes(q) ||
-      r.keterangan.toLowerCase().includes(q)
-    );
+    const matchSearch =
+      !search ||
+      row.tanggal.toLowerCase().includes(q) ||
+      row.kode_barang.toLowerCase().includes(q) ||
+      row.nama_barang.toLowerCase().includes(q) ||
+      row.keterangan.toLowerCase().includes(q);
+
+    // tanggal
+    const dt = new Date(row.tanggal);
+    const awalOk =
+      !filterTanggalAwal || dt >= new Date(filterTanggalAwal);
+    const akhirOk =
+      !filterTanggalAkhir || dt <= new Date(filterTanggalAkhir);
+
+    // filter kode barang
+    const kodeOk =
+      !filterKodeBarang ||
+      row.kode_barang.toLowerCase().includes(filterKodeBarang.toLowerCase());
+
+    return matchSearch && awalOk && akhirOk && kodeOk;
   });
 
   // ========================================================
@@ -386,11 +403,7 @@ export default function PenerimaanLogistik() {
           </h1>
 
           {isSuperAdmin && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedLab
-                ? `Lab dipilih: ${selectedLab.nama_lab} (${selectedLab.kode_ruangan})`
-                : "Pilih lab terlebih dahulu"}
-            </p>
+            <p className="text-sm text-muted-foreground mt-1"></p>
           )}
         </div>
 
@@ -411,22 +424,29 @@ export default function PenerimaanLogistik() {
             <DialogContent className="sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>
-                  {editingTarget
-                    ? "Edit Penerimaan Logistik"
-                    : "Tambah Penerimaan Logistik"}
+                  {editingTarget ? "Edit Penerimaan Logistik" : "Tambah Penerimaan Logistik"}
                 </DialogTitle>
               </DialogHeader>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* LAB */}
                   <div>
-                    <Label>Laboratorium</Label>
-                    <Input value={form.kode_ruangan} disabled />
+                    <Label htmlFor="formLab">Laboratorium</Label>
+                    <Input
+                      id="formLab"
+                      name="formLab"
+                      value={form.kode_ruangan}
+                      disabled
+                    />
                   </div>
 
+                  {/* Tanggal */}
                   <div>
-                    <Label>Tanggal</Label>
+                    <Label htmlFor="formTanggal">Tanggal</Label>
                     <Input
+                      id="formTanggal"
+                      name="formTanggal"
                       type="date"
                       value={form.tanggal}
                       onChange={(e) =>
@@ -441,9 +461,9 @@ export default function PenerimaanLogistik() {
 
                 {/* BARANG */}
                 <div>
-                  <Label>Pilih Barang</Label>
+                  <Label htmlFor="selectBarang">Pilih Barang</Label>
                   <Select onValueChange={addBarang}>
-                    <SelectTrigger>
+                    <SelectTrigger id="selectBarang" name="selectBarang">
                       <SelectValue placeholder="Pilih barang..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -456,6 +476,7 @@ export default function PenerimaanLogistik() {
                   </Select>
                 </div>
 
+                {/* LIST BARANG */}
                 {form.detail.length > 0 && (
                   <div className="border rounded-md p-3 space-y-2">
                     {form.detail.map((d, idx) => (
@@ -468,14 +489,22 @@ export default function PenerimaanLogistik() {
                             {d.barang?.satuan}
                           </p>
                         </div>
+
                         <div className="flex gap-2 items-center">
+                          <Label htmlFor={`qty-${idx}`} className="sr-only">
+                            Qty
+                          </Label>
+
                           <Input
+                            id={`qty-${idx}`}
+                            name={`qty-${idx}`}
                             type="number"
                             min={1}
                             value={d.quantity}
                             onChange={(e) => updateQty(+e.target.value)}
                             className="w-20"
                           />
+
                           <Button
                             type="button"
                             variant="ghost"
@@ -490,9 +519,12 @@ export default function PenerimaanLogistik() {
                   </div>
                 )}
 
+                {/* KETERANGAN */}
                 <div>
-                  <Label>Keterangan</Label>
+                  <Label htmlFor="formKeterangan">Keterangan</Label>
                   <Textarea
+                    id="formKeterangan"
+                    name="formKeterangan"
                     value={form.keterangan}
                     onChange={(e) =>
                       setForm((p) => ({
@@ -503,6 +535,7 @@ export default function PenerimaanLogistik() {
                   />
                 </div>
 
+                {/* ACTIONS */}
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
@@ -626,22 +659,51 @@ export default function PenerimaanLogistik() {
                   </h1>
 
                   <p className="text-muted-foreground mt-1">
-                    {selectedLab.kode_ruangan} – {selectedLab.kode_bagian}
+                    {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
                   </p>
                 </div>
               </div>
 
-              {/* SEARCH */}
-              {(isAdminLab || selectedLab) && (
-                <div className="w-full mt-4 px-2">
+              {/* FILTER BAR */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">
+              
+                {/* SEARCH */}
+                <div className="flex flex-col">
+                  <Label htmlFor="filterSearch">Pencarian</Label>
                   <Input
-                    placeholder="Cari Penggunaan..."
+                    id="filterSearch"
+                    name="filterSearch"
+                    placeholder="Cari kode/nama barang"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full max-w-none"
                   />
                 </div>
-              )}
+
+                {/* TANGGAL AWAL */}
+                <div className="flex flex-col">
+                  <Label htmlFor="filterTanggalAwal">Tanggal Awal</Label>
+                  <Input
+                    id="filterTanggalAwal"
+                    name="filterTanggalAwal"
+                    type="date"
+                    value={filterTanggalAwal}
+                    onChange={(e) => setFilterTanggalAwal(e.target.value)}
+                  />
+                </div>
+
+                {/* TANGGAL AKHIR */}
+                <div className="flex flex-col">
+                  <Label htmlFor="filterTanggalAkhir">Tanggal Akhir</Label>
+                  <Input
+                    id="filterTanggalAkhir"
+                    name="filterTanggalAkhir"
+                    type="date"
+                    value={filterTanggalAkhir}
+                    onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+                  />
+                </div>
+
+              </div>
 
               {/* TABEL */}
               <div className="overflow-x-auto border rounded-md">
@@ -690,21 +752,34 @@ export default function PenerimaanLogistik() {
       )}
 
       {/* DELETE MODAL */}
-      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent className="max-w-sm">
+      <Dialog
+        open={deleteDialog}
+        onOpenChange={(open) => {
+          setDeleteDialog(open);
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
-            <DialogTitle>Hapus penerimaan ini?</DialogTitle>
+            <DialogTitle>Hapus Penerimaan?</DialogTitle>
           </DialogHeader>
 
           <p className="text-sm text-muted-foreground">
-            Tindakan ini tidak dapat dibatalkan.
+            Tindakan ini tidak dapat dibatalkan. Data yang dihapus tidak dapat
+            dikembalikan.
           </p>
 
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setDeleteDialog(false)}>
               Batal
             </Button>
-            <Button variant="destructive" onClick={confirmDelete}>
+
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              className="flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" />
               Hapus
             </Button>
           </div>

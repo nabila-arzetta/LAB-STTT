@@ -163,7 +163,7 @@ const Login: React.FC = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@test.com"
+                  placeholder="Masukkan Email Anda"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-10 sm:h-11 md:h-12 bg-white border-2 border-[#092044]/20 focus:border-[#092044] focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-colors"
@@ -179,7 +179,7 @@ const Login: React.FC = () => {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
+                    placeholder="Masukkan Password Anda"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="h-10 sm:h-11 md:h-12 pr-10 sm:pr-11 md:pr-12 bg-white border-2 border-[#092044]/20 focus:border-[#092044] focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-colors"
