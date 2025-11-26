@@ -154,26 +154,46 @@ export default function DataInventaris() {
 
   // === LOAD TRANSFER BARANG ===
   useEffect(() => {
-    // superadmin harus pilih lab dulu
-    if (isAdmin() && !selectedLabKode) return;
-
     setLoadingTransfer(true);
     setErrorTransfer(null);
 
     listTransfer()
       .then((all) => {
+        if (!Array.isArray(all)) {
+          setTransferData([]);
+          return;
+        }
+
         if (isAdmin()) {
-          // filter berdasarkan lab yang dipilih
-          const kode = selectedLabKode?.toUpperCase() ?? "";
-          setTransferData(
-            all.filter(
-              (t: any) =>
-                t.kode_ruangan_dari.toUpperCase() === kode ||
-                t.kode_ruangan_tujuan.toUpperCase() === kode
-            )
-          );
+          // kalau superadmin tapi BELUM pilih lab → tampilkan SEMUA dulu
+          if (!selectedLabKode) {
+            setTransferData(all);
+            return;
+          }
+
+          const kode = selectedLabKode.toUpperCase();
+
+          const filtered = all.filter((t: any) => {
+            const dari =
+              t.kode_ruangan_dari ||
+              t.kode_bagian_dari ||
+              t.lab_asal ||
+              "";
+
+            const tujuan =
+              t.kode_ruangan_tujuan ||
+              t.kode_bagian_tujuan ||
+              t.lab_tujuan ||
+              "";
+
+            return (
+              String(dari).toUpperCase() === kode ||
+              String(tujuan).toUpperCase() === kode
+            );
+          });
+
+          setTransferData(filtered);
         } else {
-          // admin_lab: backend sudah filter otomatis
           setTransferData(all);
         }
       })
@@ -284,65 +304,24 @@ export default function DataInventaris() {
     String(l.kode_ruangan ?? l.kode_bagian ?? l.kode ?? "").toLowerCase() === (selectedLabKode ?? "").toLowerCase()
   );
 
-  // Render
-  if (authUser?.role === "superadmin" && !selectedLabKode) {
+  if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-primary">Data Inventaris</h1>
-          <p className="text-muted-foreground mt-1">Pilih laboratorium untuk melihat daftar barang di lab tersebut</p>
-        </div>
-
-        {errorMsg &&
-          <Card className="border-destructive/40">
-            <CardContent
-              className="p-4 text-destructive">{errorMsg}
-            </CardContent>
-          </Card>}
-
-        {loading ? (
-          <div className="text-sm text-muted-foreground">Memuat data…</div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {availableLabs.map((lab, index) => {
-              const pick = lab.kode_ruangan ?? lab.kode_bagian ?? lab.kode ?? null;
-
-              return (
-                <div
-                  key={lab.id ?? `lab-${index}`}
-                  className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
-                  onClick={() => pick && setSelectedLabKode(String(pick))}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="p-3 bg-primary/20 rounded-lg">
-                      <Building2 className="w-6 h-6 text-primary" />
-                    </div>
-
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  </div>
-
-                  <h3 className="font-semibold text-lg">{lab.nama}</h3>
-
-                  <p className="text-sm text-muted-foreground">
-                    {lab.kode_bagian ?? lab.kode_ruangan ?? lab.kode ?? "-"}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      <p className="text-center p-6 text-muted-foreground">
+        Memuat data...
+      </p>
     );
   }
 
-  // Detail lab: tabel inventaris lab
+  // ================== RENDER ==================
   return (
     <div className="space-y-6">
 
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        {/* TOMBOL BACK HANYA UNTUK SUPERADMIN */}
-        {authUser?.role === "superadmin" && (
+      <h1 className="text-2xl font-bold text-primary">
+        Inventaris Barang
+      </h1>
+
+      {authUser?.role === "superadmin" && selectedLab && (
+        <div className="flex items-center gap-4 mt-2">
           <Button
             variant="ghost"
             size="icon"
@@ -351,288 +330,249 @@ export default function DataInventaris() {
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-        )}
 
-        <div>
-          <h1 className="text-2xl font-bold text-primary">
-            {selectedLab?.nama}
-          </h1>
-
-          {selectedLab && (
-            <p className="text-muted-foreground mt-1">
-              {selectedLab?.kode_ruangan} — {selectedLab?.kode_bagian}
+          <div>
+            <h2 className="text-lg font-bold text-primary">
+              {selectedLab.nama}
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
             </p>
-          )}
+          </div>
         </div>
+      )}
+
+      {/* ===== MODE PILIH LAB (SUPERADMIN & BELUM PILIH LAB) ===== */}
+      {authUser?.role === "superadmin" && !selectedLabKode && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+          {availableLabs.map((lab, index) => {
+            const pick =
+              lab.kode_ruangan ?? lab.kode_bagian ?? lab.kode ?? null;
+
+            return (
+              <div
+                key={lab.id ?? `lab-${index}`}
+                className="p-6 border rounded-lg cursor-pointer hover:shadow-md transition-all"
+                onClick={() => pick && setSelectedLabKode(String(pick))}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="p-3 bg-primary/20 rounded-lg">
+                    <Building2 className="w-6 h-6 text-primary" />
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                </div>
+
+                <h3 className="font-semibold text-lg">{lab.nama}</h3>
+                <p className="text-sm text-muted-foreground">
+                  {lab.kode_ruangan} - {lab.kode_bagian}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ===== TAB ===== */}
+      <div className="flex gap-2 border-b pb-2 mt-4">
+        <Button
+          variant={activeTab === "inventaris" ? "default" : "outline"}
+          className="rounded-xl px-4"
+          onClick={() => setActiveTab("inventaris")}
+        >
+          Inventaris Barang
+        </Button>
+
+        <Button
+          variant={activeTab === "transfer" ? "default" : "outline"}
+          className="rounded-xl px-4"
+          onClick={() => setActiveTab("transfer")}
+        >
+          Transfer Barang
+        </Button>
       </div>
 
-      {/* === TAB === */}
-      <div className="flex justify-between items-center gap-2 border-b pb-2">
-        <div className="flex gap-2">
-
-          {/* TAB INVENTARIS */}
-          <Button
-            variant={activeTab === "inventaris" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${activeTab === "inventaris"
-              }`}
-            onClick={() => setActiveTab("inventaris")}
-          >
-            Inventaris Barang
-          </Button>
-
-          {/* TAB TRANSFER */}
-          <Button
-            variant={activeTab === "transfer" ? "default" : "outline"}
-            className={`rounded-xl px-4 py-2 ${activeTab === "transfer"
-              }`}
-            onClick={() => setActiveTab("transfer")}
-          >
-            Transfer Barang
-          </Button>
-        </div>
-      </div>
-
-      {/* === TAB CONTENT === */}
+      {/* ================= TAB CONTENT ================= */}
       {activeTab === "inventaris" ? (
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Daftar Inventaris Barang</CardTitle>
-
-            {/* === FILTER INVENTARIS === */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3 mt-4">
-
-              {/* Search Inventaris */}
-              <div className="flex flex-col w-full md:w-1/3">
-                <label
-                  htmlFor="inventarisSearch"
-                  className="text-xs text-muted-foreground mb-1"
-                >
-                  Pencarian
-                </label>
-
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-
-                  <input
-                    id="inventarisSearch"
-                    name="inventarisSearch"
-                    type="text"
-                    placeholder="Cari barang..."
-                    className="pl-10 border px-3 py-2 rounded-md w-full"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-
+        <>
+          {/* ===== FILTER BAR INVENTARIS ===== */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4 px-1">
+            <div className="flex flex-col">
+              <label className="text-xs text-muted-foreground mb-1">
+                Pencarian
+              </label>
+              <input
+                type="text"
+                placeholder="Cari barang..."
+                className="border px-3 py-2 rounded-md"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-          </CardHeader>
+          </div>
 
-          <CardContent>
-            <DataTable
-              data={paginatedInventaris}
-              columns={columnsAdapter}
-              emptyMessage={
-                searchTerm
-                  ? "Tidak ada barang yang ditemukan"
-                  : "Belum ada data"
-              }
-            />
+          {/* ===== TABLE INVENTARIS ===== */}
+          <div className="overflow-x-auto mt-4 border rounded-md">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left">Nama Barang</th>
+                  <th className="p-3 text-left">Stok Akhir</th>
+                  <th className="p-3 text-left">Satuan</th>
+                  <th className="p-3 text-left">Kategori</th>
+                  <th className="p-3 text-left">Deskripsi</th>
+                </tr>
+              </thead>
 
-            {/* Pagination */}
-            {totalInventarisPages > 1 && (
-              <div className="flex justify-center mt-4 gap-2">
-                <Button
-                  variant="outline"
-                  disabled={inventarisPage === 1}
-                  onClick={() => setInventarisPage((p) => p - 1)}
-                >
-                  Prev
-                </Button>
-
-                {Array.from({ length: totalInventarisPages }).map((_, i) => (
-                  <Button
-                    key={i}
-                    variant={inventarisPage === i + 1 ? "default" : "outline"}
-                    onClick={() => setInventarisPage(i + 1)}
-                  >
-                    {i + 1}
-                  </Button>
-                ))}
-
-                <Button
-                  variant="outline"
-                  disabled={inventarisPage === totalInventarisPages}
-                  onClick={() => setInventarisPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle>Daftar Transfer Barang Antar Lab</CardTitle>
-
-            {/* === FILTER TRANSFER === */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3 mt-4">
-
-              {/* Search Transfer */}
-              <div className="flex flex-col w-full md:w-1/3">
-                <label
-                  htmlFor="transferSearch"
-                  className="text-xs text-muted-foreground mb-1"
-                >
-                  Pencarian
-                </label>
-
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-
-                  <input
-                    id="transferSearch"
-                    name="transferSearch"
-                    type="text"
-                    placeholder="Cari barang / lab..."
-                    className="pl-10 border px-3 py-2 rounded-md w-full"
-                    value={searchTransfer}
-                    onChange={(e) => setSearchTransfer(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              {/* Tanggal Awal */}
-              <div className="flex flex-col">
-                <label
-                  htmlFor="filterTanggalAwal"
-                  className="text-xs text-muted-foreground mb-1"
-                >
-                  Tanggal Awal
-                </label>
-
-                <input
-                  id="filterTanggalAwal"
-                  name="filterTanggalAwal"
-                  type="date"
-                  className="border px-3 py-2 rounded-md"
-                  value={filterTanggalAwal}
-                  onChange={(e) => setFilterTanggalAwal(e.target.value)}
-                />
-              </div>
-
-              {/* Tanggal Akhir */}
-              <div className="flex flex-col">
-                <label
-                  htmlFor="filterTanggalAkhir"
-                  className="text-xs text-muted-foreground mb-1"
-                >
-                  Tanggal Akhir
-                </label>
-
-                <input
-                  id="filterTanggalAkhir"
-                  name="filterTanggalAkhir"
-                  type="date"
-                  className="border px-3 py-2 rounded-md"
-                  value={filterTanggalAkhir}
-                  onChange={(e) => setFilterTanggalAkhir(e.target.value)}
-                />
-              </div>
-
-              {/* Status */}
-              <div className="flex flex-col">
-                <label
-                  htmlFor="filterStatus"
-                  className="text-xs text-muted-foreground mb-1"
-                >
-                  Status
-                </label>
-
-                <select
-                  id="filterStatus"
-                  name="filterStatus"
-                  className="border px-3 py-2 rounded-md"
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                >
-                  <option value="">Semua Status</option>
-                  <option value="pending">Menunggu</option>
-                  <option value="approved">Disetujui</option>
-                  <option value="partial_approved">Disetujui Sebagian</option>
-                  <option value="rejected">Ditolak</option>
-                  <option value="completed">Selesai</option>
-                </select>
-              </div>
-
-            </div>
-          </CardHeader>
-
-          <CardContent>
-            {loadingTransfer && (
-              <p className="text-muted-foreground text-sm">Memuat data transfer…</p>
-            )}
-
-            {errorTransfer && (
-              <p className="text-destructive">{errorTransfer}</p>
-            )}
-
-            {!loadingTransfer && transferData.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Belum ada data transfer barang.
-              </p>
-            )}
-
-            {!loadingTransfer && transferData.length > 0 && (
-              <div className="overflow-x-auto border rounded-md">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-muted/40">
-                    <tr>
-                      <th className="p-3 text-left">Tanggal</th>
-                      <th className="p-3 text-left">Dari</th>
-                      <th className="p-3 text-left">Ke</th>
-                      <th className="p-3 text-left">Kode Barang</th>
-                      <th className="p-3 text-left">Nama Barang</th>
-                      <th className="p-3 text-left">Qty</th>
-                      <th className="p-3 text-left">Status</th>
+              <tbody>
+                {paginatedInventaris.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-muted-foreground">
+                      Tidak ada data inventaris
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedInventaris.map((item, idx) => (
+                    <tr key={idx} className="border-b hover:bg-muted/50">
+                      <td className="p-3 font-medium">{item.nama_barang}</td>
+                      <td className="p-3">{item.stok_akhir}</td>
+                      <td className="p-3">{item.satuan}</td>
+                      <td className="p-3">{item.kategori}</td>
+                      <td className="p-3">{item.deskripsi ?? "-"}</td>
                     </tr>
-                  </thead>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                  <tbody>
-                    {paginatedTransfer.map((t) =>
-                      t.detail.length > 0 ? (
-                        t.detail.map((d: any) => (
-                          <tr key={`${t.id_transfer}-${d.kode_barang}`} className="border-b">
-                            <td className="p-3">{formatTanggalIndo(t.tanggal)}</td>
-                            <td className="p-3">{t.lab_asal}</td>
-                            <td className="p-3">{t.lab_tujuan}</td>
-                            <td className="p-3">{d.kode_barang}</td>
-                            <td className="p-3">{d.nama_barang}</td>
-                            <td className="p-3">{d.quantity}</td>
-                            <td className="p-3">{formatStatus(t.status)}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr key={`single-${t.id_transfer}`} className="border-b">
-                          <td className="p-3">{formatTanggalIndo(t.tanggal)}</td>
-                          <td className="p-3">{t.lab_asal}</td>
-                          <td className="p-3">{t.lab_tujuan}</td>
-                          <td className="p-3">-</td>
-                          <td className="p-3">-</td>
-                          <td className="p-3">-</td>
-                          <td className="p-3">{formatStatus(t.status)}</td>
-                        </tr>
-                      )
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+          {/* ===== PAGINATION INVENTARIS ===== */}
+          {totalInventarisPages > 1 && (
+            <div className="flex justify-center mt-4 gap-2">
+              <Button
+                variant="outline"
+                disabled={inventarisPage === 1}
+                onClick={() => setInventarisPage((p) => p - 1)}
+              >
+                Prev
+              </Button>
+
+              {Array.from({ length: totalInventarisPages }).map((_, i) => (
+                <Button
+                  key={i}
+                  variant={inventarisPage === i + 1 ? "default" : "outline"}
+                  onClick={() => setInventarisPage(i + 1)}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+
+              <Button
+                variant="outline"
+                disabled={inventarisPage === totalInventarisPages}
+                onClick={() => setInventarisPage((p) => p + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          {/* ===== FILTER BAR TRANSFER ===== */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 px-1">
+
+            <div className="flex flex-col">
+              <label className="text-xs text-muted-foreground mb-1">
+                Pencarian
+              </label>
+              <input
+                type="text"
+                placeholder="Cari barang / lab..."
+                className="border px-3 py-2 rounded-md"
+                value={searchTransfer}
+                onChange={(e) => setSearchTransfer(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-muted-foreground mb-1">
+                Tanggal Awal
+              </label>
+              <input
+                type="date"
+                className="border px-3 py-2 rounded-md"
+                value={filterTanggalAwal}
+                onChange={(e) => setFilterTanggalAwal(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-muted-foreground mb-1">
+                Tanggal Akhir
+              </label>
+              <input
+                type="date"
+                className="border px-3 py-2 rounded-md"
+                value={filterTanggalAkhir}
+                onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-muted-foreground mb-1">
+                Status
+              </label>
+              <select
+                className="border px-3 py-2 rounded-md"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="">Semua Status</option>
+                <option value="pending">Menunggu</option>
+                <option value="approved">Disetujui</option>
+                <option value="partial_approved">Disetujui Sebagian</option>
+                <option value="rejected">Ditolak</option>
+                <option value="completed">Selesai</option>
+              </select>
+            </div>
+          </div>
+
+          {/* ===== TABLE TRANSFER ===== */}
+          <div className="overflow-x-auto mt-4 border rounded-md">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-3 text-left">Tanggal</th>
+                  <th className="p-3 text-left">Dari</th>
+                  <th className="p-3 text-left">Ke</th>
+                  <th className="p-3 text-left">Kode Barang</th>
+                  <th className="p-3 text-left">Nama Barang</th>
+                  <th className="p-3 text-left">Qty</th>
+                  <th className="p-3 text-left">Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {paginatedTransfer.map((t) =>
+                  t.detail.length > 0 ? (
+                    t.detail.map((d: any) => (
+                      <tr key={`${t.id_transfer}-${d.kode_barang}`} className="border-b">
+                        <td className="p-3">{formatTanggalIndo(t.tanggal)}</td>
+                        <td className="p-3">{t.lab_asal}</td>
+                        <td className="p-3">{t.lab_tujuan}</td>
+                        <td className="p-3">{d.kode_barang}</td>
+                        <td className="p-3">{d.nama_barang}</td>
+                        <td className="p-3">{d.quantity}</td>
+                        <td className="p-3">{formatStatus(t.status)}</td>
+                      </tr>
+                    ))
+                  ) : null
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
-  );
+  ); 
 }
-

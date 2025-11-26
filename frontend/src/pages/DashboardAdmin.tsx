@@ -36,7 +36,13 @@ export const DashboardAdmin: React.FC = () => {
   }, [isError]);
 
   if (isLoading) {
-    return <div className="p-6 text-muted-foreground">Memuat dashboard...</div>;
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse">
+          Memuat data...
+        </p>
+      </div>
+    );
   }
 
   if (isError) {

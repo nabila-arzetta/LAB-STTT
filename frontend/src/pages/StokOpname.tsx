@@ -91,6 +91,7 @@ export default function StokOpname() {
   const [opnameData, setOpnameData] = useState<OpnameRowFromApi[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [opnameItems, setOpnameItems] = useState<OpnameItem[]>([]);
   const [selectedLabKode, setSelectedLabKode] = useState<string | null>(
@@ -278,10 +279,9 @@ export default function StokOpname() {
     setHasToken(true);
 
     const init = async () => {
-      setLoading(true);
+      setInitialLoading(true);
 
       try {
-        // Semua jalan paralel
         await Promise.all([
           fetchProfileIfNeeded(),
           isSuperadmin ? loadLabs() : Promise.resolve(),
@@ -290,7 +290,7 @@ export default function StokOpname() {
         console.error(err);
       } finally {
         setUserLoaded(true);
-        setLoading(false);
+        setInitialLoading(false); // ✅ INI YANG PENTING
       }
     };
 
@@ -330,16 +330,17 @@ export default function StokOpname() {
     if (!selectedLabKode) return;
 
     const loadForLab = async () => {
-      setLoading(true);
       try {
-        await loadOpname(selectedLabKode); // barang tidak diload di awal
+        setInitialLoading(true);   // ✅ tampilkan loader global
+        await loadOpname(selectedLabKode);
       } finally {
-        setLoading(false);
+        setInitialLoading(false);  // ✅ sembunyikan loader setelah data siap
       }
     };
 
     loadForLab();
   }, [selectedLabKode]);
+
 
 
   /* ------------------ Helpers ------------------ */
@@ -534,6 +535,25 @@ export default function StokOpname() {
   };
 
   /* ------------------ Render ------------------ */
+
+  if (isSuperadmin && initialLoading) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse text-base">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
+
+  if (isAdminLab && (loading || hasToken === null || !userLoaded)) {
+    return (
+        <p className="flex justify-center pt-6 text-muted-foreground animate-pulse">
+        Memuat data...
+      </p>
+    );
+  }
+
   if (hasToken === false) {
     return (
       <div className="space-y-6">
@@ -549,7 +569,6 @@ export default function StokOpname() {
 
   // Superadmin view
   if (isSuperadmin) {
-    if (loading) return <p className="p-6">Memuat data...</p>;
 
     if (!selectedLabKode) {
       // Sort based on nama_lab ascending
@@ -567,7 +586,10 @@ export default function StokOpname() {
               <div
                 key={lab.kode_ruangan}
                 className="p-6 border rounded-lg cursor-pointer hover:shadow-md"
-                onClick={() => setSelectedLabKode(lab.kode_ruangan)}
+                onClick={() => {
+                  setInitialLoading(true);   
+                  setSelectedLabKode(lab.kode_ruangan);
+                }}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 bg-primary/20 rounded-lg">

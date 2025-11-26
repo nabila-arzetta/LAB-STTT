@@ -54,21 +54,21 @@ export const AppSidebar: React.FC = () => {
   const realCollapsed = isMobile ? false : isCollapsed;
 
   const menuItems = [
+    // === DASHBOARD ===
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 
+    // === SUPERADMIN ONLY: DATA USER ===
     ...(isSuperAdmin
       ? [{ title: "Data User", url: "/master/users", icon: Users }]
       : []),
 
+    // === UMUM (URUT SESUAI PERMINTAAN) ===
     { title: "Data Lab", url: "/master/lab", icon: Building2 },
     { title: "Master Barang", url: "/master/barang", icon: Boxes },
-    { title: "Inventaris Barang", url: "/inventaris", icon: Database },
-
-    { title: "Penggunaan Barang", url: "/penggunaan", icon: ClipboardList },
-
     { title: "Penerimaan Logistik", url: "/penerimaan-logistik", icon: PackagePlus },
-
+    { title: "Penggunaan Barang", url: "/penggunaan", icon: ClipboardList },
     { title: "Transfer Barang", url: "/transfer", icon: ArrowLeftRight },
+    { title: "Inventaris Barang", url: "/inventaris", icon: Database },
     { title: "Stok Opname", url: "/stok-opname", icon: Layers },
   ];
 

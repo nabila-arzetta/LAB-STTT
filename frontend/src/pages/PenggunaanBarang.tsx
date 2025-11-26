@@ -696,15 +696,15 @@ export default function PenggunaanBarang() {
                 </Button>
 
                 <div>
-                  <h1 className="text-3xl font-bold text-primary">
+                  <h1 className="text-lg font-bold text-primary">
                     {selectedLab.nama_lab}
                   </h1>
-
                   <p className="text-muted-foreground mt-1">
                     {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
                   </p>
                 </div>
               </div>
+
 
               {/* FILTER BAR */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">

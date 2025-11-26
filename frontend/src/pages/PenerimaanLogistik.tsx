@@ -642,27 +642,29 @@ export default function PenerimaanLogistik() {
           )}
 
           {isSuperAdmin && selectedLab && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedKodeRuangan(null)}
-                  className="shrink-0"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
+          <div className="space-y-3">
 
-                <div>
-                  <h1 className="text-3xl font-bold text-primary">
-                    {selectedLab.nama_lab}
-                  </h1>
+            {/* HEADER SAMA PERSIS DENGAN TRANSFER BARANG */}
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedKodeRuangan(null)}
+                className="shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
 
-                  <p className="text-muted-foreground mt-1">
-                    {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-lg font-bold text-primary">
+                  {selectedLab.nama_lab}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
+                </p>
               </div>
+            </div>
+
 
               {/* FILTER BAR */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">

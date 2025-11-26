@@ -372,6 +372,16 @@ export const MasterBarang: React.FC = () => {
     }
   };
 
+  if (loadingLabs) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header when no lab selected */}
@@ -384,9 +394,7 @@ export const MasterBarang: React.FC = () => {
             </p>
           </div>
 
-          {loadingLabs ? (
-            <div className="text-sm text-muted-foreground">Memuat daftar lab…</div>
-          ) : labs.length === 0 ? (
+          {labs.length === 0 ? (
             <div className="text-sm text-muted-foreground">
               Tidak ada lab aktif yang bisa diakses akun ini.
             </div>

@@ -202,6 +202,22 @@ export default function TransferBarang() {
     [labs, selectedKodeRuangan]
   );
 
+  const resolvedLab = useMemo(() => {
+    if (isSuperAdmin) return selectedLab;
+
+    if (isAdminLab && userLab) {
+      return (
+        labs.find(
+          (l) =>
+            String(l.kode_ruangan).toUpperCase() ===
+            String(userLab).toUpperCase()
+        ) ?? null
+      );
+    }
+
+    return null;
+  }, [isSuperAdmin, isAdminLab, selectedLab, userLab, labs]);
+
   const openApproveModal = (transfer: Transfer) => {
     setApproveTarget(transfer);
 
@@ -727,28 +743,27 @@ export default function TransferBarang() {
       {/* ====== TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB ====== */}
       {(isAdminLab || selectedLab) && (
         <>
-          {/* Header */}
-          <div className="flex items-center gap-4">
           {isSuperAdmin && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedKodeRuangan(null)}
-              className="shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          )}
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedKodeRuangan(null)}
+                className="shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
 
-          <div>
-            <h1 className="text-3xl font-bold text-primary">
-              {selectedLab?.nama_lab ?? ""}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {selectedLab?.kode_ruangan ?? ""} - {selectedLab?.kode_bagian ?? ""}
-            </p>
-          </div>
-        </div>
+              <div>
+                <h1 className="text-lg font-bold text-primary">
+                  {resolvedLab?.nama_lab ?? ""}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {resolvedLab?.kode_ruangan ?? ""} - {resolvedLab?.kode_bagian ?? ""}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* TAB SWITCHER */}
           <div className="flex justify-between items-center gap-2 border-b pb-2">
@@ -829,8 +844,8 @@ export default function TransferBarang() {
                   <th className="p-3 text-left">Satuan</th>
                   <th className="p-3 text-left">Keterangan</th>
                   <th className="p-3 text-left">Status</th>
-                  {isAdminLab && activeTab === "in" && (
-                    <th className="p-3 text-left">Aksi</th>
+                  {isAdminLab && (
+                    <th className="p-3 text-left w-[90px]">Aksi</th>
                   )}
                 </tr>
               </thead>
@@ -877,7 +892,7 @@ export default function TransferBarang() {
 
                         {/* Aksi */}
                         {isAdminLab && (
-                          <td className="p-3">
+                          <td className="p-3 w-[90px]">
                             <div className="flex items-center gap-1">
 
                               {/* TAB MASUK: ACC / TOLAK */}

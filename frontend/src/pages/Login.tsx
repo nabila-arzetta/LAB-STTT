@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, ArrowLeft, Phone, MapPin, Mail } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, Phone, MapPin, Mail, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
@@ -14,6 +14,7 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState({ email: "", password: "" });
 
   const { login, user } = useAuth();
   const navigate = useNavigate();
@@ -23,18 +24,143 @@ const Login: React.FC = () => {
     if (user) navigate("/dashboard", { replace: true });
   }, [user]);
 
+  // Validasi real-time
+  const validateEmail = (value: string): string => {
+    if (!value) {
+      return "Email wajib diisi";
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) {
+      return "Format email tidak valid";
+    }
+    return "";
+  };
+
+  const validatePassword = (value: string): string => {
+    if (!value) {
+      return "Password wajib diisi";
+    }
+    if (value.length < 6) {
+      return "Password minimal 6 karakter";
+    }
+    return "";
+  };
+
+  // Handle perubahan email
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setEmail(value);
+    if (errors.email) {
+      setErrors(prev => ({ ...prev, email: validateEmail(value) }));
+    }
+  };
+
+  // Handle perubahan password
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    if (errors.password) {
+      setErrors(prev => ({ ...prev, password: validatePassword(value) }));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) return toast.error("Email dan password wajib diisi");
 
+    // Validasi sebelum submit
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    if (emailError || passwordError) {
+      setErrors({ email: emailError, password: passwordError });
+      
+      // Toast untuk error pertama yang ditemukan
+      if (emailError) {
+        toast.error(emailError);
+      } else if (passwordError) {
+        toast.error(passwordError);
+      }
+      return;
+    }
+
+    // Clear errors sebelum submit
+    setErrors({ email: "", password: "" });
     setIsLoading(true);
+
     try {
       await login(email, password);
-      toast.success("Login berhasil!");
+
+      toast.success("Login berhasil! Selamat datang.", {
+        duration: 3000,
+      });
+
       const redirect = (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
       navigate(redirect, { replace: true });
+
     } catch (err: any) {
-      toast.error(err?.response?.data?.message ?? "Login gagal");
+      console.error("Login error:", err);
+
+      // Handle berbagai jenis error
+      const response = err?.response;
+      const status = response?.status;
+      const data = response?.data;
+
+      // Error dari validasi backend (422)
+      if (status === 422 && data?.errors) {
+        const backendErrors = data.errors;
+        setErrors({
+          email: backendErrors.email?.[0] || "",
+          password: backendErrors.password?.[0] || "",
+        });
+        toast.error(data.message || "Validasi gagal. Periksa input Anda.");
+        return;
+      }
+
+      // Error 429 - Too Many Attempts
+      if (status === 429) {
+        toast.error(data?.message || "Terlalu banyak percobaan login. Silakan tunggu beberapa saat.", {
+          duration: 5000,
+        });
+        return;
+      }
+
+      // Error 401 - Email tidak terdaftar atau password salah
+      if (status === 401) {
+        const message = data?.message;
+        
+        if (message?.toLowerCase().includes("email")) {
+          setErrors(prev => ({ ...prev, email: message }));
+        } else if (message?.toLowerCase().includes("password")) {
+          setErrors(prev => ({ ...prev, password: message }));
+        }
+        
+        toast.error(message || "Email atau password salah.");
+        return;
+      }
+
+      // Error 403 - Account inactive or forbidden
+      if (status === 403) {
+        toast.error(data?.message || "Akun Anda tidak aktif. Hubungi administrator.", {
+          duration: 5000,
+        });
+        return;
+      }
+
+      // Error 500 - Server error
+      if (status === 500) {
+        toast.error("Terjadi kesalahan pada server. Silakan coba lagi nanti.");
+        return;
+      }
+
+      // Network error (tidak ada response)
+      if (!response) {
+        toast.error("Tidak dapat terhubung ke server. Periksa koneksi internet Anda.");
+        return;
+      }
+
+      // Default error message
+      toast.error(data?.message || "Login gagal. Silakan coba lagi.");
+
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +217,7 @@ const Login: React.FC = () => {
         />
       </div>
 
-      {/* Overlay gelap - dikurangi opacity */}
+      {/* Overlay gelap */}
       <div className="absolute inset-0 bg-[#092044]/30"></div>
 
       {/* Navbar */}
@@ -156,21 +282,32 @@ const Login: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 md:space-y-5">
+              {/* Email Field */}
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="email" className="text-xs sm:text-sm font-semibold text-[#092044]">
                   Email
                 </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Masukkan Email Anda"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="h-10 sm:h-11 md:h-12 bg-white border-2 border-[#092044]/20 focus:border-[#092044] focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-colors"
-                  disabled={isLoading}
-                />
+                <div className="relative">
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Masukkan email anda"
+                    value={email}
+                    onChange={handleEmailChange}
+                    className={`h-10 sm:h-11 md:h-12 bg-white border-2 focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-all duration-200 ${
+                      errors.email 
+                        ? "border-red-500 focus:border-red-500 bg-red-50/30" 
+                        : "border-[#092044]/20 focus:border-[#092044]"
+                    }`}
+                    disabled={isLoading}
+                  />
+                  {errors.email && (
+                    <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-red-500 animate-pulse" />
+                  )}
+                </div>
               </div>
 
+              {/* Password Field */}
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="password" className="text-xs sm:text-sm font-semibold text-[#092044]">
                   Password
@@ -179,10 +316,14 @@ const Login: React.FC = () => {
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Masukkan Password Anda"
+                    placeholder="Masukkan password anda"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="h-10 sm:h-11 md:h-12 pr-10 sm:pr-11 md:pr-12 bg-white border-2 border-[#092044]/20 focus:border-[#092044] focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-colors"
+                    onChange={handlePasswordChange}
+                    className={`h-10 sm:h-11 md:h-12 pr-10 sm:pr-11 md:pr-12 bg-white border-2 focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-all duration-200 ${
+                      errors.password 
+                        ? "border-red-500 focus:border-red-500 bg-red-50/30" 
+                        : "border-[#092044]/20 focus:border-[#092044]"
+                    }`}
                     disabled={isLoading}
                   />
                   <button
@@ -203,18 +344,40 @@ const Login: React.FC = () => {
 
               <Button
                 type="submit"
-                disabled={isLoading || !email || !password}
-                className="w-full h-10 sm:h-11 md:h-12 bg-[#092044] hover:bg-[#092044]/90 text-white font-semibold text-sm sm:text-base rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                disabled={isLoading}
+                className="w-full h-10 sm:h-11 md:h-12 bg-[#092044] hover:bg-[#092044]/90 text-white font-semibold text-sm sm:text-base rounded-lg transition-all duration-300 shadow-lg hover:shadow-xl active:scale-95 disabled:opacity-90 disabled:cursor-wait disabled:hover:scale-100 relative overflow-hidden group"
               >
                 {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                    Memproses...
-                  </span>
+                  <>
+                    {/* Background Shimmer */}
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></span>
+                    
+                    {/* Loading Content */}
+                    <span className="relative flex items-center justify-center gap-2">
+                      {/* Spinner */}
+                      <span className="relative w-5 h-5 sm:w-5 sm:h-5">
+                        <span className="absolute inset-0 border-2 border-white/30 rounded-full"></span>
+                        <span className="absolute inset-0 border-2 border-transparent border-t-white border-r-white rounded-full animate-spin"></span>
+                      </span>
+                      
+                      {/* Text */}
+                      <span>Memproses</span>
+                    </span>
+                  </>
                 ) : (
                   "Masuk"
                 )}
               </Button>
+              
+              <style>{`
+                @keyframes shimmer {
+                  0% { transform: translateX(-100%); }
+                  100% { transform: translateX(100%); }
+                }
+                .animate-shimmer {
+                  animation: shimmer 2s infinite;
+                }
+              `}</style>
             </form>
           </div>
         </div>
@@ -256,4 +419,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login; 
+export default Login;

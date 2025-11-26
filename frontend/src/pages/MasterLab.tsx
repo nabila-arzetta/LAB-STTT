@@ -316,6 +316,16 @@ const MasterLab: React.FC = () => {
     );
   };
 
+  if (loading || !user) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 px-3 sm:px-6 lg:px-10 w-full max-w-screen-xl mx-auto">
       {/* Header */}
@@ -414,7 +424,7 @@ const MasterLab: React.FC = () => {
             searchPlaceholder="Cari laboratorium..."
             onSearch={setSearchTerm}
             searchTerm={searchTerm}
-            emptyMessage={loading ? 'Memuat data…' : 'Tidak ada laboratorium ditemukan'}
+            emptyMessage="Tidak ada laboratorium ditemukan"
             actions={actions}
           />
         </div>

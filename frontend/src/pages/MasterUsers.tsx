@@ -43,6 +43,7 @@ const MasterUsers: React.FC = () => {
   const [selectedLabName, setSelectedLabName] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -101,9 +102,18 @@ const MasterUsers: React.FC = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchLabs();
+    const init = async () => {
+      try {
+        setInitialLoading(true);
+        await Promise.all([fetchUsers(), fetchLabs()]);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    init();
   }, [fetchUsers, fetchLabs]);
+
 
   // const filteredUsers = useMemo(() => {
   //   const q = searchTerm.toLowerCase();
@@ -347,6 +357,16 @@ const MasterUsers: React.FC = () => {
       )}
     </div>
   );
+
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
