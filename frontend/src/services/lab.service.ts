@@ -8,25 +8,19 @@ export type LabDTO = {
   status?: string;
   can_manage?: boolean;
   kode_ruangan?: string | null;
-  // deprecated fields kept for compatibility
   kode?: string | null;
 };
 
-// ========================================
-// 🔥 LIST LABS dengan role filtering
-// - superadmin → GET /labs
-// - admin_lab → GET /labs?onlyManage=true
-// ========================================
 
 export async function listLabs(): Promise<LabDTO[]> {
   try {
-    // Ambil user dari localStorage (pasti ada saat login)
+    // Ambil user dari localStorage
     const userJson = localStorage.getItem("user");
     const user = userJson ? JSON.parse(userJson) : null;
 
     const isSuperadmin = user?.role === "superadmin";
 
-    // Jika admin_lab → backend hanya mengembalikan lab miliknya
+    // Jika admin_lab, backend hanya mengembalikan lab miliknya
     const endpoint = isSuperadmin ? "/labs" : "/labs?onlyManage=true";
 
     const res = await api.get(endpoint);
@@ -34,7 +28,7 @@ export async function listLabs(): Promise<LabDTO[]> {
 
     if (!Array.isArray(data)) return [];
 
-    // mapping tetap sama seperti sebelumnya (tidak diubah!)
+    // mapping tetap sama seperti sebelumnya
     return data.map((lab: any) => ({
       id: lab.id_lab ?? lab.id ?? 0,
       nama: lab.nama_lab ?? lab.nama ?? "",

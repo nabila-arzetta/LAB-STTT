@@ -121,7 +121,6 @@ const menuItems = [
   return (
     <div className="space-y-6 pb-10">
 
-      {/* ================= HEADER (TETAP) ================= */}
       <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
         <div className="relative z-10">
           {isSuperAdmin ? (
@@ -188,7 +187,6 @@ const menuItems = [
         </div>
       </div>
 
-      {/* ================= SUPERADMIN STATS (TETAP) ================= */}
       {isSuperAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {superAdminStats.map((stat, idx) => {

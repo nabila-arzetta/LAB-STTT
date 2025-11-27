@@ -11,13 +11,11 @@ use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    // List semua user
     public function index(Request $request)
     {
         $user = $request->user();
         $isSuperAdmin = $user->role === 'superadmin';
 
-        // Ambil user + join ke master_lab biar dapet nama lab
         $query = DB::table('users as u')
             ->leftJoin('master_lab as ml', 'u.kode_bagian', '=', 'ml.kode_bagian')
             ->select(
@@ -47,7 +45,6 @@ class UserController extends Controller
             return response()->json(['message' => 'Hanya superadmin yang dapat menambahkan user.'], 403);
         }
 
-        // Validasi input
         $data = $request->validate([
             'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
@@ -126,7 +123,6 @@ class UserController extends Controller
 
         DB::table('users')->where('id', $id)->update($updateData);
 
-        // Ambil ulang data lengkap dengan join ke master_lab
         $updatedUser = DB::table('users as u')
             ->leftJoin('master_lab as ml', 'u.kode_bagian', '=', 'ml.kode_bagian')
             ->select(

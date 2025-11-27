@@ -131,9 +131,7 @@ export default function PenggunaanBarang() {
     [labList, selectedKodeRuangan]
   );
 
-  // =========================================================
   // LOAD DATA
-  // =========================================================
   const loadData = useCallback(async () => {
     console.log("MULAI FETCH /penggunaan-barang");
     setLoading(true);
@@ -148,7 +146,7 @@ export default function PenggunaanBarang() {
 
       setLabList(aktifs);
 
-      // Temukan lab yang dimiliki admin (pakai tipe nyata, bukan any)
+      // Temukan lab yang dimiliki admin 
       const userLab = aktifs.find(
         (l) => String(l.kode_bagian).toLowerCase() === String(userKodeBagian).toLowerCase()
       );
@@ -205,15 +203,12 @@ export default function PenggunaanBarang() {
     loadData();
   }, [loadData]);
 
-  // =========================================================
   // FORM HANDLER
-  // =========================================================
   const addBarang = (kode: string) => {
     if (!kode) return;
 
     setForm((p) => ({
       ...p,
-      // selalu hanya 1 item
       detail: [
         {
           kode_barang: kode,
@@ -353,9 +348,7 @@ export default function PenggunaanBarang() {
     }
   };
 
-  // =========================================================
   // DATA TABLE
-  // =========================================================
   const detailRows = isAdminLab
     ? penggunaan.flatMap((p) =>
         p.detail.map((d) => ({
@@ -381,8 +374,7 @@ export default function PenggunaanBarang() {
         )
       : [];
 
-  // Flatten ke level detail agar kolom jadi:
-  // Tanggal | Kode Barang | Nama Barang | Qty | Satuan | Keterangan
+  // Flatten ke level detail agar kolom jadi: Tanggal | Kode Barang | Nama Barang | Qty | Satuan | Keterangan
   const superadminDetailRows = superadminFilteredPenggunaan.flatMap((p) =>
     p.detail.map((d) => ({
       tanggal: p.tanggal,
@@ -394,7 +386,6 @@ export default function PenggunaanBarang() {
     }))
   );
 
-  // Filter pencarian untuk superadmin berdasarkan kolom yang diminta
   const superadminSearchedDetailRows = superadminDetailRows.filter((row) => {
     const q = search.toLowerCase();
 
@@ -420,9 +411,6 @@ export default function PenggunaanBarang() {
     return matchSearch && awalOk && akhirOk && kodeOk;
   });
 
-  // =========================================================
-  // RENDER
-  // =========================================================
   if (loading)
     return (
       <p className="text-center p-6 text-muted-foreground">
@@ -594,7 +582,7 @@ export default function PenggunaanBarang() {
         )}
       </div>
 
-      {/* TABLE ADMIN LAB (TIDAK DIUBAH) */}
+      {/* TABLE ADMIN LAB */}
       {isAdminLab ? (
         <div className="overflow-x-auto border rounded-md">
           <table className="min-w-full text-sm">
@@ -648,6 +636,7 @@ export default function PenggunaanBarang() {
           </table>
         </div>
       ) : (
+
         // TABLE SUPERADMIN
         <>
           {/* Kalau superadmin belum pilih lab → tampilkan daftar lab */}
@@ -792,7 +781,7 @@ export default function PenggunaanBarang() {
         </>
       )}
 
-      {/* DETAIL MODAL (tidak dipakai superadmin lagi, tapi dibiarkan) */}
+      {/* DETAIL MODAL */}
       <Dialog
         open={!!selected}
         onOpenChange={(open) => !open && setSelected(null)}
@@ -849,7 +838,7 @@ export default function PenggunaanBarang() {
       <Dialog
         open={deleteDialog}
         onOpenChange={(v) => {
-          if (!v) setSelected(null); // reset item yang dipilih
+          if (!v) setSelected(null); 
           setDeleteDialog(v);
         }}
       >

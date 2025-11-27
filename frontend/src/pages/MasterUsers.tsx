@@ -114,14 +114,6 @@ const MasterUsers: React.FC = () => {
     init();
   }, [fetchUsers, fetchLabs]);
 
-
-  // const filteredUsers = useMemo(() => {
-  //   const q = searchTerm.toLowerCase();
-  //   return users.filter(
-  //     (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-  //   );
-  // }, [users, searchTerm]);
-
   const groupedUsers = useMemo(() => {
     const map = new Map<string, any>();
     users.forEach(u => {
@@ -140,7 +132,7 @@ const MasterUsers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // mulai loading
+    setLoading(true); 
     try {
       if (editingUser) {
         const { data } = await api.put(`/users/${editingUser.id}`, formData);
@@ -150,7 +142,7 @@ const MasterUsers: React.FC = () => {
         toast({ title: 'Berhasil', description: 'User diperbarui.' });
       } else {
         const { data } = await api.post('/users', formData);
-        // 🧠 Cek apakah user dengan ID ini sudah ada — kalau iya, replace
+        // Cek apakah user dengan ID ini sudah ada
         setUsers((prev) => {
           const exists = prev.some((u) => u.id === data.data.id);
           return exists
@@ -183,28 +175,12 @@ const MasterUsers: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  // const handleDelete = async (id: number) => {
-  //   setLoading(true);
-  //   try {
-  //     setUsers((prev) => prev.filter((u) => u.id !== id));
-  //     toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
-  //   } catch (err: any) {
-  //     toast({
-  //       title: 'Gagal menghapus',
-  //       description: err?.response?.data?.message ?? err.message,
-  //       variant: 'destructive',
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleDelete = async (id: number) => {
     setLoading(true);
     try {
       // Panggil API backend untuk hapus user
       await api.delete(`/users/${id}`);
-      // Update state setelah berhasil hapus di server
+      
       setUsers((prev) => prev.filter((u) => u.id !== id));
       toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
     } catch (err: any) {
@@ -251,40 +227,18 @@ const MasterUsers: React.FC = () => {
       await api.delete(`/users/${userLab.id}`);
       toast({ title: 'Berhasil', description: `Lab "${labName}" dihapus dari user.` });
     } else {
-      // Hanya satu lab, hapus user-nya
+      
       await api.delete(`/users/${userLab.id}`);
       toast({ title: 'Berhasil', description: `User "${groupedUser.name}" dihapus.` });
     }
     fetchUsers();
   };
 
-
   const resetForm = () => {
     setFormData({ name: '', email: '', password: '', role: 'admin_lab', kode_bagian: '' });
     setEditingUser(null);
     setIsDialogOpen(false);
   };
-
-  // const columns = [
-  //   {
-  //     key: 'no',
-  //     header: 'No',
-  //     className: 'w-16 text-center',
-  //     render: (u: User) => <>{users.indexOf(u) + 1}</>,
-  //   },
-  //   { key: 'name', header: 'Nama' },
-  //   { key: 'email', header: 'Email' },
-  //   {
-  //     key: 'role',
-  //     header: 'Role',
-  //     render: (u: User) => <Badge>{u.role}</Badge>,
-  //   },
-  //   {
-  //     key: 'lab',
-  //     header: 'Laboratorium',
-  //     render: (u: any) => u.lab_name ?? '-',
-  //   },
-  // ];
 
   const columns = [
     {

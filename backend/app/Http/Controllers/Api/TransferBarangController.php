@@ -8,9 +8,6 @@ use Illuminate\Support\Facades\DB;
 
 class TransferBarangController extends Controller
 {
-    /**
-     * GET /api/transfer-barang
-     */
     public function index(Request $request)
     {
         $user = $request->user();
@@ -26,7 +23,6 @@ class TransferBarangController extends Controller
             $labUser = DB::table('master_lab')->where('kode_ruangan', 'L-'.$prefix)->first();
         }
 
-        // Query utama
         $query = DB::table('transfer_barang as t')
             ->leftJoin('master_lab as l1', 'l1.kode_ruangan', '=', 't.kode_ruangan_dari')
             ->leftJoin('master_lab as l2', 'l2.kode_ruangan', '=', 't.kode_ruangan_tujuan')
@@ -89,9 +85,7 @@ class TransferBarangController extends Controller
         return response()->json(['success'=>true,'data'=>$transfers]);
     }
 
-    /**
-     * POST /api/transfer-barang
-     */
+    // Store new transfer
     public function store(Request $request)
     {
         $user = $request->user();
@@ -144,9 +138,7 @@ class TransferBarangController extends Controller
         }
     }
 
-    /**
-     * PUT /api/transfer-barang/{id}
-     */
+    // Update transfer
     public function update(Request $request, $id)
     {
         $user = $request->user();
@@ -199,9 +191,7 @@ class TransferBarangController extends Controller
         }
     }
 
-    /**
-     * DELETE /api/transfer-barang/{id}
-     */
+    // Delete transfer
     public function destroy(Request $request, $id)
     {
         $user = $request->user();
@@ -228,10 +218,7 @@ class TransferBarangController extends Controller
         }
     }
 
-    /**
-     * POST /api/transfer-barang/{id}/approve
-     * ACC oleh lab tujuan
-     */
+    // Approve transfer
     public function approve(Request $request, $id)
     {
         $user = $request->user();
@@ -241,7 +228,6 @@ class TransferBarangController extends Controller
         $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
         if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
 
-        // cek bahwa user adalah lab tujuan
         $labUser = DB::table('master_lab')->where('kode_bagian',$user->kode_bagian)->first();
         if (!$labUser || strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan))
             return response()->json(['message'=>'Anda bukan lab tujuan'],403);
@@ -332,9 +318,7 @@ class TransferBarangController extends Controller
         }
     }
 
-    /**
-     * POST /api/transfer-barang/{id}/reject
-     */
+    // Reject transfer
     public function reject(Request $request, $id)
     {
         $user = $request->user();

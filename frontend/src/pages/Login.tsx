@@ -74,7 +74,6 @@ const Login: React.FC = () => {
     if (emailError || passwordError) {
       setErrors({ email: emailError, password: passwordError });
       
-      // Toast untuk error pertama yang ditemukan
       if (emailError) {
         toast.error(emailError);
       } else if (passwordError) {
@@ -168,10 +167,9 @@ const Login: React.FC = () => {
 
   return (
     <div className="relative flex flex-col min-h-screen overflow-hidden">
-      {/* Background Gradient */}
+
       <div className="absolute inset-0 bg-gradient-to-b from-[#092044] via-[#1a4d7a] to-[#A7BDD2]"></div>
 
-      {/* Building Image - Mobile */}
       <div 
         className="absolute left-1/2 -translate-x-1/3 w-full pointer-events-none md:hidden" 
         style={{ 
@@ -189,7 +187,6 @@ const Login: React.FC = () => {
         />
       </div>
 
-      {/* Building Image - Tablet */}
       <div 
         className="absolute bottom-0 right-0 hidden md:block lg:hidden pointer-events-none" 
         style={{ width: "85%", height: "65%" }}
@@ -203,7 +200,6 @@ const Login: React.FC = () => {
         />
       </div>
 
-      {/* Building Image - Desktop */}
       <div 
         className="absolute bottom-0 right-0 hidden lg:block pointer-events-none" 
         style={{ width: "50%", height: "100%" }}
@@ -217,7 +213,6 @@ const Login: React.FC = () => {
         />
       </div>
 
-      {/* Overlay gelap */}
       <div className="absolute inset-0 bg-[#092044]/30"></div>
 
       {/* Navbar */}
@@ -349,10 +344,8 @@ const Login: React.FC = () => {
               >
                 {isLoading ? (
                   <>
-                    {/* Background Shimmer */}
                     <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-shimmer"></span>
                     
-                    {/* Loading Content */}
                     <span className="relative flex items-center justify-center gap-2">
                       {/* Spinner */}
                       <span className="relative w-5 h-5 sm:w-5 sm:h-5">
@@ -360,7 +353,6 @@ const Login: React.FC = () => {
                         <span className="absolute inset-0 border-2 border-transparent border-t-white border-r-white rounded-full animate-spin"></span>
                       </span>
                       
-                      {/* Text */}
                       <span>Memproses</span>
                     </span>
                   </>

@@ -8,9 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class MasterBarangController extends Controller
 {
-    /**
-     * 🔹 List semua master barang (bisa filter per lab)
-     */
+    // List semua master barang (bisa filter per lab)
     public function index(Request $request)
     {
         $query = DB::table('master_barang as mb')
@@ -28,17 +26,12 @@ class MasterBarangController extends Controller
             ->leftJoin('master_lab as ml', 'ml.id_lab', '=', 'mb.id_lab')
             ->orderBy('mb.nama_barang', 'asc');
 
-        // kode ruangan dari user dan kode ruangan dari master barang harus sama
-        // if ($request->user()->role === 'admin_lab') {
-        //     $query->where('mb.kode_ruangan', $request->user()->kode_bagian);
-        // }
-
-        // 🔹 Filter berdasarkan id_lab
+        // Filter berdasarkan id_lab
         if ($request->filled('id_lab')) {
             $query->where('mb.id_lab', $request->id_lab);
         }
 
-        // 🔹 Filter pencarian
+        // Filter pencarian
         if ($request->filled('q')) {
             $q = $request->q;
             $query->where(function ($qr) use ($q) {
@@ -54,9 +47,7 @@ class MasterBarangController extends Controller
         ]);
     }
 
-    /**
-     * 🔹 Tambah master barang baru
-     */
+    // Tambah master barang baru
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -68,14 +59,14 @@ class MasterBarangController extends Controller
             'id_lab'        => 'nullable|integer|exists:master_lab,id_lab',
         ]);
 
-        // 🔹 Ambil kode_ruangan otomatis berdasarkan id_lab
+        // Ambil kode_ruangan otomatis berdasarkan id_lab
         $kodeRuangan = null;
         if (!empty($data['id_lab'])) {
             $lab = DB::table('master_lab')->where('id_lab', $data['id_lab'])->first();
             $kodeRuangan = $lab ? $lab->kode_ruangan : null;
         }
 
-        // 🔹 Simpan ke DB
+        // Simpan ke DB
         $barangId = DB::table('master_barang')->insertGetId([
             'kode_barang'  => $data['kode_barang'],
             'nama_barang'  => $data['nama_barang'],
@@ -96,9 +87,7 @@ class MasterBarangController extends Controller
         ], 201);
     }
 
-    /**
-     * 🔹 Update barang
-     */
+    // Perbarui data barang
     public function update(Request $request, $id)
     {
         $data = $request->validate([
@@ -124,9 +113,7 @@ class MasterBarangController extends Controller
         return response()->json(['message' => 'Barang berhasil diperbarui']);
     }
 
-    /**
-     * 🔹 Hapus barang
-     */
+    // Menghapus barang
     public function destroy($id)
     {
         $exists = DB::table('master_barang')->where('id', $id)->exists();
@@ -139,9 +126,7 @@ class MasterBarangController extends Controller
         return response()->json(['message' => 'Barang berhasil dihapus']);
     }
 
-    /**
-     * 🔹 Search untuk dropdown (autocomplete)
-     */
+    // Pencarian master barang
     public function search(Request $request)
     {
         $q     = trim((string) $request->get('q', ''));

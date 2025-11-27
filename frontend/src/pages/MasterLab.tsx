@@ -24,7 +24,6 @@ type Lab = {
   nama_lab: string;
   lokasi: string | null;
   status: 'aktif' | 'nonaktif' | string | number | null;
-  // can_manage: boolean;
 };
 
 const MasterLab: React.FC = () => {
@@ -50,7 +49,6 @@ const MasterLab: React.FC = () => {
     kode_bagian: '',
   });
 
-  /** ==== Fetch all lab ==== */
   const fetchLabs = useCallback(async () => {
     try {
       setLoading(true);
@@ -71,7 +69,6 @@ const MasterLab: React.FC = () => {
     fetchLabs();
   }, [fetchLabs]);
 
-  /** ==== Filter Search ==== */
   const filteredLab = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     let result = labs;
@@ -98,21 +95,18 @@ const MasterLab: React.FC = () => {
     return result;
   }, [labs, searchTerm, isSuperAdmin, userKode]);
 
-  /** ==== Util ==== */
   const isAktif = (status: string | number | null) => {
     if (status == null) return false;
     if (typeof status === 'number') return status === 1;
     return String(status).toLowerCase() === 'aktif';
   };
 
-  /** ==== Reset Form ==== */
   const resetForm = () => {
     setFormData({ nama_lab: '', lokasi: '', status: 'aktif', kode_bagian: '' });
     setEditingLab(null);
     setIsDialogOpen(false);
   };
 
-  /** ==== Submit ==== */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -127,10 +121,9 @@ const MasterLab: React.FC = () => {
 
     try {
       if (editingLab) {
-        // 🧩 Update data di backend
+        // Update data
         const { data } = await api.put(`/labs/${editingLab.id_lab ?? 0}`, formData);
 
-        // 🧠 Langsung update state lokal
         setLabs((prev) =>
           prev.map((lab) =>
             lab.id_lab === editingLab.id_lab ? { ...lab, ...data.data } : lab
@@ -139,10 +132,9 @@ const MasterLab: React.FC = () => {
 
         toast({ title: 'Berhasil', description: `Laboratorium diperbarui.` });
       } else {
-        // 🧩 Create data di backend
+        // Create data
         const { data } = await api.post('/labs', formData);
 
-        // 🧠 Tambahkan langsung ke state
         setLabs((prev) => [...prev, data.data]);
 
         toast({ title: 'Berhasil', description: 'Laboratorium baru berhasil ditambahkan.' });
@@ -158,18 +150,8 @@ const MasterLab: React.FC = () => {
     }
   };
 
-  /** ==== Edit ==== */
+  // Edit
   const handleEdit = (lab: Lab) => {
-    // console.log(lab);
-    // lab.can manage tidak ada di dalam lab
-    // if (!lab.can_manage) {
-    //   toast({
-    //     title: 'Tidak dapat mengedit',
-    //     description: 'Anda tidak memiliki izin untuk mengubah lab ini.',
-    //     variant: 'destructive',
-    //   });
-    //   return;
-    // }
 
     setEditingLab(lab);
     setFormData({
@@ -181,7 +163,7 @@ const MasterLab: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  /** ==== Delete ==== */
+  // Delete
   const handleDelete = async (lab: Lab) => {
     if (!isSuperAdmin) {
       toast({
@@ -197,7 +179,6 @@ const MasterLab: React.FC = () => {
         params: { kode_bagian: lab.kode_bagian },
       });
 
-      // 🧠 Langsung hapus dari state
       setLabs((prev) => prev.filter((item) => item.id_lab !== lab.id_lab));
 
       toast({ title: 'Berhasil', description: `Laboratorium "${lab.nama_lab}" dihapus.` });
@@ -232,7 +213,6 @@ const MasterLab: React.FC = () => {
     }
   };
 
-  /** ==== Kolom Tabel ==== */
   const columns = [
     {
       key: 'no',
@@ -285,7 +265,6 @@ const MasterLab: React.FC = () => {
     },
   ];
 
-  /** ==== Actions ==== */
   const actions = (lab: Lab) => {
     const canEdit = isSuperAdmin || lab.kode_bagian === userKode;
     return (
@@ -345,7 +324,7 @@ const MasterLab: React.FC = () => {
         )}
       </div>
 
-      {/* Dialog (buat dan edit) */}
+      {/* Dialog (create dan edit) */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="w-[95%] sm:max-w-md">
           <DialogHeader>

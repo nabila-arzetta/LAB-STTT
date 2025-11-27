@@ -110,9 +110,6 @@ export default function PenerimaanLogistik() {
     [selectedKodeRuangan, labList]
   );
 
-  // ========================================================
-  // LOAD DATA
-  // ========================================================
   const loadData = useCallback(async () => {
     setLoading(true);
 
@@ -194,9 +191,7 @@ export default function PenerimaanLogistik() {
     });
   };
 
-  // ========================================================
   // FORM HANDLING
-  // ========================================================
   const addBarang = (kode: string) => {
     if (!kode) return;
 
@@ -317,9 +312,7 @@ export default function PenerimaanLogistik() {
     }
   };
 
-  // ========================================================
   // FILTER ADMIN DATA (FLATTEN)
-  // ========================================================
   const detailRows = isAdminLab
     ? list.flatMap((p) =>
         p.detail.map((d) => ({
@@ -335,9 +328,7 @@ export default function PenerimaanLogistik() {
       )
     : [];
 
-  // ========================================================
   // SUPERADMIN VIEW (FILTER by LAB + SEARCH)
-  // ========================================================
   const superFiltered =
     isSuperAdmin && selectedLab
       ? list.filter(
@@ -383,9 +374,6 @@ export default function PenerimaanLogistik() {
     return matchSearch && awalOk && akhirOk && kodeOk;
   });
 
-  // ========================================================
-  // RENDER
-  // ========================================================
   if (loading)
     return (
       <p className="text-center p-6 text-muted-foreground">
@@ -608,6 +596,7 @@ export default function PenerimaanLogistik() {
           </table>
         </div>
       ) : (
+
         // TABLE SUPERADMIN
         <>
           {isSuperAdmin && !selectedLab && (
@@ -644,7 +633,7 @@ export default function PenerimaanLogistik() {
           {isSuperAdmin && selectedLab && (
           <div className="space-y-3">
 
-            {/* HEADER SAMA PERSIS DENGAN TRANSFER BARANG */}
+            {/* HEADER */}
             <div className="flex items-center gap-4">
               <Button
                 variant="ghost"

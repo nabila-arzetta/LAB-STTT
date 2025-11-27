@@ -23,9 +23,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 
-/* ==========================
-      TYPE DEFINITIONS
-=========================== */
 type Barang = {
   kode_barang: string;
   nama_barang: string;
@@ -66,9 +63,7 @@ type Transfer = {
   detail: TransferDetail[];
 };
 
-/* ==========================
-      BADGE
-=========================== */
+/* BADGE */
 const StatusBadge = ({ status }: { status: TransferStatus }) => {
   const classes: Record<TransferStatus, string> = {
     pending: "bg-yellow-500 text-black hover:bg-yellow-500",
@@ -93,9 +88,7 @@ const StatusBadge = ({ status }: { status: TransferStatus }) => {
   );
 };
 
-/* ==========================
-      MAIN COMPONENT
-=========================== */
+/* MAIN COMPONENT */
 export default function TransferBarang() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -112,14 +105,12 @@ export default function TransferBarang() {
   const userLab = useMemo(() => {
     if (!user || labs.length === 0) return undefined;
 
-    // 1. Cocokkan berdasarkan kode_bagian
     let lab = labs.find(
       (l) =>
         String(l.kode_bagian).toUpperCase() ===
         String(user.kode_bagian).toUpperCase()
     );
 
-    // 2. Jika tidak ketemu → fallback pakai prefix username (sama seperti backend)
     if (!lab) {
       const prefix = String(user.username).split("_")[0].toUpperCase(); 
       const guess = "L-" + prefix;
@@ -143,7 +134,6 @@ export default function TransferBarang() {
     });
   };
 
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [search, setSearch] = useState("");
@@ -164,28 +154,22 @@ export default function TransferBarang() {
   const [selected, setSelected] = useState<Transfer | null>(null);
   const [activeTab, setActiveTab] = useState<"out" | "in">("out");
 
-  // ==== STATE MODAL ACC ====
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [approveTarget, setApproveTarget] = useState<Transfer | null>(null);
   const [approveDetails, setApproveDetails] = useState<
     (TransferDetail & { qty_approved: number })[]
   >([]);
 
-  // ==== STATE MODAL TOLAK ====
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<Transfer | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  // ==== STATE EDIT ====
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Transfer | null>(null);
 
-  // ==== STATE DELETE ====
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null);
 
-
-  // ==== STATE SUPERADMIN: LAB YANG DIPILIH ====
   const [selectedKodeRuangan, setSelectedKodeRuangan] = useState<string | null>(
     null
   );
@@ -250,9 +234,6 @@ export default function TransferBarang() {
     }
   };
 
-  /* ==========================
-      FETCH DATA
-  =========================== */
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -293,9 +274,6 @@ export default function TransferBarang() {
     }
   }, [isAdminLab, userLab]);
 
-  /* ==========================
-      CREATE TRANSFER
-  =========================== */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -334,10 +312,6 @@ export default function TransferBarang() {
       });
     }
   };
-
-  /* ==========================
-      APPROVE HANDLERS
-  =========================== */
 
   const handleApproveQtyChange = (kode: string, value: string) => {
     setApproveDetails((prev) =>
@@ -381,9 +355,6 @@ export default function TransferBarang() {
     }
   };
 
-  /* ==========================
-      REJECT HANDLERS
-  =========================== */
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectTarget) return;
@@ -393,9 +364,6 @@ export default function TransferBarang() {
     setRejectReason("");
   };
 
-  /* ==========================
-      EDIT TRANSFER
-  =========================== */
   const openEditModal = (t: Transfer) => {
     setEditTarget(t);
 
@@ -437,9 +405,6 @@ export default function TransferBarang() {
     }
   };
 
-  /* ==========================
-        DELETE TRANSFER
-  =========================== */
   const confirmDeleteTransfer = async () => {
     if (!deleteTarget) return;
 
@@ -458,11 +423,7 @@ export default function TransferBarang() {
       });
     }
   };
-
-  /* ==========================
-      DATA VIEW (ADMIN vs SUPERADMIN)
-  =========================== */
-
+  
   // lab yang sedang "di-view" di tabel
   const viewKodeRuangan = isSuperAdmin
     ? selectedLab?.kode_ruangan ?? ""
@@ -487,7 +448,7 @@ export default function TransferBarang() {
         : inbound
       : [];
 
-  // Flatten dulu
+  // Flatten
   const rawRows = currentTransfers.flatMap((t) =>
     t.detail?.length
       ? t.detail.map((d) => ({ transfer: t, detail: d }))
@@ -501,7 +462,7 @@ export default function TransferBarang() {
 
     const q = search.toLowerCase();
 
-    // ---- SEARCH ----
+    // SEARCH 
     const matchSearch =
       !search ||
       t.tanggal.toLowerCase().includes(q) ||
@@ -509,14 +470,14 @@ export default function TransferBarang() {
       (d?.nama_barang?.toLowerCase().includes(q) ?? false) ||
       (t.keterangan?.toLowerCase().includes(q) ?? false);
 
-    // ---- KODE BARANG ----
+    // KODE BARANG 
     const kodeOk =
       !filterKodeBarang ||
       (d?.kode_barang ?? "")
         .toLowerCase()
         .includes(filterKodeBarang.toLowerCase());
 
-    // ---- TANGGAL ----
+    // TANGGAL 
     const dt = new Date(t.tanggal);
 
     const awalOk =
@@ -527,10 +488,6 @@ export default function TransferBarang() {
 
     return matchSearch && kodeOk && awalOk && akhirOk;
   });
-
-  /* ==========================
-      RENDER
-  =========================== */
 
   if (loading) {
     return (
@@ -708,7 +665,7 @@ export default function TransferBarang() {
         )}
       </div>
 
-      {/* ====== PILIH LAB (KHUSUS SUPERADMIN) ====== */}
+      {/* PILIH LAB (KHUSUS SUPERADMIN) */}
       {isSuperAdmin && !selectedLab && (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -740,7 +697,7 @@ export default function TransferBarang() {
         </div>
       )}
 
-      {/* ====== TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB ====== */}
+      {/* TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB */}
       {(isAdminLab || selectedLab) && (
         <>
           {isSuperAdmin && (
@@ -953,7 +910,7 @@ export default function TransferBarang() {
         </>
       )}
 
-      {/* MODAL ACC - tetap, hanya bisa dipakai admin_lab karena aksi disembunyikan dari superadmin */}
+      {/* MODAL ACC */}
       <Dialog
         open={isApproveOpen}
         onOpenChange={(open) => {
@@ -1064,7 +1021,7 @@ export default function TransferBarang() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL TOLAK - tetap, hanya bisa dipakai admin_lab karena aksi disembunyikan dari superadmin */}
+      {/* MODAL TOLAK */}
       <Dialog
         open={isRejectOpen}
         onOpenChange={(open) => {

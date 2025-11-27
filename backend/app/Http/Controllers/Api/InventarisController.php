@@ -14,10 +14,9 @@ class InventarisController extends Controller
         $role = $user->role;
         $userKodeBagian = strtoupper($user->kode_bagian ?? '');
 
-        // Ambil lab dari query param (khusus superadmin)
         $requestedLab = strtoupper($request->query('lab', ''));
 
-        //   ================  ROLE: SUPERADMIN  =====================
+        // ROLE: SUPERADMIN  
         if ($role === 'superadmin') {
 
             if (!$requestedLab) {
@@ -28,7 +27,7 @@ class InventarisController extends Controller
             }
         }
 
-        //   =================  ROLE: ADMIN LAB  ======================
+        // ROLE: ADMIN LAB 
         elseif ($role === 'admin_lab') {
 
             // Ambil semua lab milik admin lab berdasarkan kode_bagian user
@@ -50,7 +49,6 @@ class InventarisController extends Controller
                 ->whereIn('kode_ruangan', $allowedLabs);
         }
 
-        //   ====================  ROLE LAIN  =========================
         else {
             return response()->json([
                 'success' => false,
@@ -58,10 +56,10 @@ class InventarisController extends Controller
             ], 403);
         }
 
-        //   ===================  AMBIL DATA  ========================
+        // AMBIL DATA 
         $barang = $query->get();
 
-        //   ===============  TAMBAHKAN DATA LAB  ====================
+        // TAMBAHKAN DATA LAB 
         $labs = DB::table('master_lab')
             ->select('kode_ruangan', 'kode_bagian', 'nama_lab', 'lokasi')
             ->get()

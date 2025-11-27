@@ -46,7 +46,7 @@ class AuthController extends Controller
 
         // Cek apakah email terdaftar
         if (!$user) {
-            RateLimiter::hit($key, 60); // Increment failed attempts
+            RateLimiter::hit($key, 60); 
             
             return response()->json([
                 'message' => 'Email tidak terdaftar dalam sistem.'
@@ -62,23 +62,12 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // Cek status user (opsional, jika ada kolom status/active)
-        // if (isset($user->status) && $user->status !== 'active') {
-        //     return response()->json([
-        //         'message' => 'Akun Anda tidak aktif. Silakan hubungi administrator.'
-        //     ], 403);
-        // }
-
         // Clear rate limiter on successful login
         RateLimiter::clear($key);
-
-        // Hapus token lama (opsional, untuk keamanan)
-        // $user->tokens()->delete();
 
         // Membuat token baru
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        // Load relasi bagian/lab
         $user->load(['bagian' => function($query) {
             $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
         }]);
@@ -107,7 +96,7 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         try {
-            // Mengambil data user beserta bagian (relationship)
+            // Mengambil data user beserta bagian
             $user = $request->user()->load(['bagian' => function($query) {
                 $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
             }]);
@@ -132,7 +121,7 @@ class AuthController extends Controller
         }
     }
 
-    // Logout dan hapus token
+    // Logout 
     public function logout(Request $request)
     {
         try {
@@ -149,7 +138,6 @@ class AuthController extends Controller
         }
     }
 
-    // Reset rate limiter (opsional, untuk testing atau admin)
     public function clearLoginAttempts(Request $request)
     {
         $email = $request->input('email');

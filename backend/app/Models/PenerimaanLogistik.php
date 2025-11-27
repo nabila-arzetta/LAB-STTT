@@ -21,7 +21,7 @@ class PenerimaanLogistik extends Model
         return $this->hasMany(DetailPenerimaanLogistik::class, 'id_penerimaan', 'id_penerimaan');
     }
 
-    // LAB (opsional, untuk join nama_lab di view superadmin)
+    // LAB
     public function lab()
     {
         return $this->belongsTo(\App\Models\MasterLab::class, 'kode_ruangan', 'kode_ruangan');

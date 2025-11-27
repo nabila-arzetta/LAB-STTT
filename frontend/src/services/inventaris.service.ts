@@ -8,7 +8,7 @@ export type StokInventaris = {
   satuan?: string;
   deskripsi?: string;
   stok_akhir: number;
-  lab?: string; // mis. 'L-BHS'
+  lab?: string; 
   kode_ruangan?: string;
   kode_bagian?: string;
   can_manage?: boolean;
@@ -16,7 +16,7 @@ export type StokInventaris = {
 
 export async function listInventaris(): Promise<StokInventaris[]> {
   try {
-    const res = await api.get("/inventaris"); // endpoint inventaris controller
+    const res = await api.get("/inventaris"); 
     const data = res.data?.data ?? res.data ?? [];
     console.log("Data inventaris:", data);
     if (!Array.isArray(data)) return [];

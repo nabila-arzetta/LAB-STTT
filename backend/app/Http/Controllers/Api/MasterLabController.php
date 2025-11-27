@@ -8,12 +8,6 @@ use Illuminate\Support\Facades\DB;
 
 class MasterLabController extends Controller
 {
-    /**
-     * Daftar seluruh lab
-     * - superadmin → semua
-     * - admin_lab → lab miliknya
-     * - opsi ?onlyManage=true → filter lab milik user
-     */
     public function index(Request $request)
     {
         $onlyManage = $request->boolean('onlyManage', false);
@@ -40,14 +34,12 @@ class MasterLabController extends Controller
             )
             ->orderBy('master_lab.nama_lab', 'asc');
 
-        // 🔹 filter hanya lab milik user (kalau bukan superadmin)
         if ($onlyManage && $user->role !== 'superadmin') {
             $query->where('master_lab.kode_bagian', $user->kode_bagian);
         }
 
         $labs = $query->get();
 
-        // Tambahkan flag can_manage untuk frontend
         $labs = $labs->map(function ($lab) use ($user) {
             $lab->can_manage = (
                 $user->role === 'superadmin' ||
@@ -59,10 +51,7 @@ class MasterLabController extends Controller
         return response()->json(['data' => $labs]);
     }
 
-    /**
-     * Endpoint khusus dropdown (lab untuk pilihan user)
-     * Lebih ringan, tanpa join atau count.
-     */
+    // Opsi lab untuk dropdown, select2, dll.
     public function options()
     {
         return response()->json([
@@ -73,11 +62,7 @@ class MasterLabController extends Controller
     }
 
 
-    /**
-     * Update lab
-     * - Superadmin bebas edit semua lab
-     * - Admin_lab hanya bisa edit lab miliknya
-     */
+    // Perbarui lab
     public function update(Request $request, $id)
     {
         $user = $request->user();
@@ -149,7 +134,6 @@ class MasterLabController extends Controller
         $kodeBagian = strtoupper(trim($data['kode_bagian']));
         $kodeRuangan = 'L-' . preg_replace('/^L-?/', '', $kodeBagian);
 
-        // 🧩 1️⃣ Buat bagian dulu kalau belum ada
         $existsInBagian = DB::table('bagian')->where('kode_bagian', $kodeBagian)->exists();
         if (!$existsInBagian) {
             DB::table('bagian')->insert([
@@ -159,7 +143,6 @@ class MasterLabController extends Controller
             ]);
         }
 
-        // 🧩 2️⃣ Baru insert ke master_lab
         $id = DB::table('master_lab')->insertGetId([
             'kode_bagian'  => $kodeBagian,
             'kode_ruangan' => $kodeRuangan,
@@ -170,7 +153,6 @@ class MasterLabController extends Controller
             'updated_at'   => now(),
         ]);
 
-        // 🧩 3️⃣ Ambil data lab yang baru dibuat
         $newLab = DB::table('master_lab')->where('id_lab', $id)->first();
 
         return response()->json([
@@ -180,11 +162,7 @@ class MasterLabController extends Controller
     }
 
 
-    /**
-     * Hapus lab
-     * - Superadmin bisa hapus semua
-     * - Admin_lab hanya lab miliknya
-     */
+    // Hapus data lab
     public function destroy(Request $request, $id)
     {
         $user = $request->user();

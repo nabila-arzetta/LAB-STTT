@@ -5,7 +5,7 @@ import React, {
   useState,
   PropsWithChildren,
 } from "react";
-import { api } from "@/lib/api"; // axios instance baseURL: http://127.0.0.1:8000/api
+import { api } from "@/lib/api"; 
 
 export type User = {
   id: number;
@@ -13,11 +13,11 @@ export type User = {
   username?: string | null;
   full_name?: string | null;
   email: string;
-  role?: string | null;                 // "admin" | "admin_lab" | "superadmin" | "user"
-  lab_id?: number | null;               // bisa ada atau tidak tergantung BE
+  role?: string | null;
+  lab_id?: number | null;               
   kode_bagian?: string | null;  
-  token: string;        // kalau pakai kode_bagian
-  lab?: {                               // kalau BE kirim object lab
+  token: string;        
+  lab?: {                               
     id?: number | null;
     nama_lab?: string | null;
     singkatan?: string | null;
@@ -35,7 +35,6 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ---- helpers peran ----
 const isAdminRole = (role?: string | null) =>
   role === "admin" || role === "admin_lab" || role === "superadmin";
 
@@ -51,7 +50,6 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     delete api.defaults.headers.common.Authorization;
   };
 
-  // Bootstrap dari localStorage -> validasi /me
   useEffect(() => {
     let alive = true;
 
@@ -71,12 +69,11 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
         if (token) {
           setAuthHeader(token);
-          // validasi token + dapat profil terbaru
+          // validasi token 
           const { data } = await api.get<User>("/me");
           if (alive) setUser(data);
         }
       } catch {
-        // token invalid / jaringan error -> bersihkan
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         clearAuthHeader();
@@ -123,7 +120,7 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const logout = async () => {
     try {
-      await api.post("/logout"); // invalidate token di server (abaikan bila gagal)
+      await api.post("/logout"); 
     } catch {}
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -133,12 +130,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
 
   const isAdmin = () => isAdminRole(user?.role);
 
-  // Ambil id lab dari berbagai kemungkinan bentuk respons BE
   const getUserLab = () => {
     if (!user) return null;
     if (typeof user.lab_id === "number") return user.lab_id ?? null;
     if (user.lab && typeof user.lab.id === "number") return user.lab.id ?? null;
-    // kalau hanya punya kode_bagian (string), FE tidak bisa jadikan id numerik
     return null;
   };
 

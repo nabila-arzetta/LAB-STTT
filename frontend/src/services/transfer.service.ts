@@ -28,7 +28,7 @@ export type Transfer = {
 // GET ALL TRANSFER BARANG
 export async function listTransfer(): Promise<Transfer[]> {
   try {
-    const res = await api.get("/transfer-barang"); // backend sudah filter role
+    const res = await api.get("/transfer-barang"); 
     const data = res.data?.data ?? [];
 
     if (!Array.isArray(data)) return [];

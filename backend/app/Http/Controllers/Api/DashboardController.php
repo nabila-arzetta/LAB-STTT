@@ -13,9 +13,6 @@ class DashboardController extends Controller
     try {
         $user = $request->user();
 
-        // ============================
-        // AMBIL DATA LAB USER
-        // ============================
         $labUser = DB::table('master_lab')
             ->where('kode_bagian', $user->kode_bagian)
             ->first();
@@ -30,9 +27,6 @@ class DashboardController extends Controller
 
         $isSuperAdmin = $user->role === 'superadmin';
 
-        // ============================
-        // INISIALISASI DEFAULT
-        // ============================
         $totalBarang   = 0;
         $barangMasuk   = 0;
         $barangKeluar  = 0;
@@ -40,9 +34,7 @@ class DashboardController extends Controller
         $totalUser     = null;
         $totalLab      = null;
 
-        // ============================
-        //     STAT SUPERADMIN
-        // ============================
+        //  STAT SUPERADMIN
         if ($isSuperAdmin) {
             $totalBarang = DB::table('master_barang')->count();
             $totalUser   = DB::table('users')->count();
@@ -51,9 +43,7 @@ class DashboardController extends Controller
                 ->count();
         }
 
-        // ============================
-        //     STAT ADMIN LAB
-        // ============================
+        // STAT ADMIN LAB
         if (!$isSuperAdmin) {
             $barangQuery = DB::table('master_barang')
                 ->when($kodeRuangan, fn ($q) =>
@@ -87,24 +77,7 @@ class DashboardController extends Controller
                 ->count();
         }
 
-        // ============================
-        //        LOW STOCK
-        // ============================
-        $lowStock = DB::table('master_barang')
-            ->when(!$isSuperAdmin && $kodeRuangan, fn ($q) =>
-                $q->where('kode_ruangan', $kodeRuangan)
-            )
-            ->orderBy('updated_at', 'desc')
-            ->limit(5)
-            ->get([
-                'id as barang_id',
-                'nama_barang',
-                DB::raw('3 as stok'),
-            ]);
-
-        // ============================
-        //        RECENT TRANSACTION
-        // ============================
+        // RECENT TRANSACTION
         $recent = DB::table('master_barang')
             ->when(!$isSuperAdmin && $kodeRuangan, fn ($q) =>
                 $q->where('kode_ruangan', $kodeRuangan)
@@ -121,9 +94,7 @@ class DashboardController extends Controller
                 'status'   => 'selesai',
             ]);
 
-        // ============================
-        //       RETURN RESPONSE
-        // ============================
+        // RETURN RESPONSE
         return response()->json([
             'debug' => [
                 'role'          => $user->role,
@@ -143,7 +114,6 @@ class DashboardController extends Controller
                 'totalLab'      => $totalLab,
             ],
 
-            'lowStock' => $lowStock,
             'recent'   => $recent,
         ]);
     } catch (\Throwable $e) {

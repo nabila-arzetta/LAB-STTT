@@ -1,4 +1,3 @@
-// src/App.tsx
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -11,11 +10,9 @@ import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { DashboardAdmin } from "./pages/DashboardAdmin";
 
 
-// default exports
 import Login from "./pages/Login";
 import DataInventaris from "./pages/DataInventaris";
 
-// named / default sesuai project-mu
 import { MasterBarang } from "./pages/MasterBarang";
 import MasterUsers from "./pages/MasterUsers";
 import MasterLab from "./pages/MasterLab";
@@ -28,7 +25,6 @@ import Index from "./pages/Index";
 
 const queryClient = new QueryClient();
 
-/** ---------- Error Boundary supaya gak blank ---------- */
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { error: Error | null }
@@ -59,14 +55,14 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-/** ---------- Protected wrapper: tunggu auth ---------- */
+/* Protected wrapper: tunggu auth  */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-6">Loading…</div>;
   return user ? <>{children}</> : <Navigate to="/login" replace />;
 };
 
-/** ---------- Dashboard selalu admin ---------- */
+/* Dashboard selalu admin  */
 const DashboardRoute = () => {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-6">Loading…</div>;
@@ -81,7 +77,7 @@ const DashboardRoute = () => {
   );
 };
 
-/** ---------- Halaman debug untuk memastikan Layout+children tampil ---------- */
+/* Halaman debug untuk memastikan Layout+children tampil  */
 const DebugPage = () => (
   <DashboardLayout>
     <div className="p-6 space-y-2">
@@ -123,7 +119,7 @@ const App = () => (
               }
             />
 
-            {/* Halaman lain dalam layout (children-based) */}
+            {/* Halaman lain dalam layout */}
             <Route
               path="/master/barang"
               element={

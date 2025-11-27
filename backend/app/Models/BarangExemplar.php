@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Database\Eloquent\Relations\BelongsTo; // <-- Tambahkan ini
+use Illuminate\Database\Eloquent\Relations\BelongsTo;  
 
 class BarangExemplar extends Model
 {
@@ -14,8 +14,8 @@ class BarangExemplar extends Model
         'barang_id',
         'serial_number',
         'kondisi',
-        'peminjaman_id', // <-- TAMBAHKAN
-        'status'         // <-- TAMBAHKAN
+        'peminjaman_id', 
+        'status'         
     ];
 
     protected static function booted()

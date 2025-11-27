@@ -50,9 +50,7 @@ class PenggunaanBarangController extends Controller
         return response()->json(['data' => $result]);
     }
 
-    /**
-     * CREATE PENGGUNAAN
-     */
+    // CREATE PENGGUNAAN
     public function store(Request $request)
     {
         $user = $request->user();
@@ -70,7 +68,6 @@ class PenggunaanBarangController extends Controller
             'detail.*.quantity'     => 'required|integer|min:1',
         ]);
 
-        // Validasi lab admin
         $labUser = DB::table('master_lab')
             ->where('kode_bagian', $user->kode_bagian)
             ->first();
@@ -115,9 +112,7 @@ class PenggunaanBarangController extends Controller
         }
     }
 
-    /**
-     * EDIT PENGGUNAAN (hanya edit tanggal, keterangan, detail)
-     */
+    // EDIT PENGGUNAAN
     public function update(Request $request, $id)
     {
         $user = $request->user();
@@ -191,9 +186,7 @@ class PenggunaanBarangController extends Controller
         }
     }
 
-    /**
-     * DELETE PENGGUNAAN
-     */
+    // DELETE PENGGUNAAN
     public function destroy(Request $request, $id)
     {
         $user = $request->user();

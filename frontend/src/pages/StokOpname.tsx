@@ -86,12 +86,12 @@ const LabHeader = ({
 }) => {
   return (
     <div className="space-y-4">
-      {/* BARIS 1: JUDUL HALAMAN */}
+      {/* JUDUL HALAMAN */}
       <h1 className="text-2xl font-bold text-primary">
         {title}
       </h1>
 
-      {/* BARIS 2–3: INFO LAB */}
+      {/* INFO LAB */}
       {subtitle && (
         <div className="flex items-start gap-3 pl-1">
           {onBack && (
@@ -121,16 +121,13 @@ const LabHeader = ({
   );
 };
 
-/* ------------------ Component -------------------- */
 export default function StokOpname() {
   const { user: authUser, setUser: setAuthUser } = useAuth();
   const [userLoaded, setUserLoaded] = useState(false);
 
-  // peran
   const isSuperadmin = authUser?.role === "superadmin";
   const isAdminLab = authUser?.role === "admin_lab";
 
-  // ADMIN LAB: kode ruangan (real kode_ruangan jika diset)
   const [adminLabKodeRuangan, setAdminLabKodeRuangan] = useState<string | null>(
     authUser?.kode_ruangan ?? null
   );
@@ -160,7 +157,6 @@ export default function StokOpname() {
       }
     : { "Content-Type": "application/json" };
 
-  /* ------------------ Helper: fetch profile if needed ------------------ */
   const fetchProfileIfNeeded = async () => {
     if (!isAdminLab) {
       setUserLoaded(true);
@@ -182,7 +178,6 @@ export default function StokOpname() {
       const kodeRuangan =
         dataUser?.kode_ruangan ?? dataUser?.lab?.kode_ruangan ?? null;
 
-      // fallback: cocokkan kode_bagian dengan master_lab via /api/labs/options
       if (!kodeRuangan && dataUser?.kode_bagian) {
         try {
           const labRes = await fetch("/api/labs/options", { headers });
@@ -225,7 +220,6 @@ export default function StokOpname() {
     }
   };
 
-  /* ------------------ API LOAD FUNCTIONS ------------------ */
   // LOAD OPNAME
   const loadOpname = async (labParam?: string | null) => {
     if (!token) {
@@ -248,7 +242,6 @@ export default function StokOpname() {
       }
 
       if (isAdminLab) {
-        // Pastikan kita punya kode_ruangan admin
         if (!adminLabKodeRuangan) {
           setOpnameData([]);
           return;
@@ -262,7 +255,6 @@ export default function StokOpname() {
 
       const raw = Array.isArray(json.data) ? json.data : [];
 
-      // GLOBAL SORTING — newest first
       const sorted = raw.sort(
         (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
       );
@@ -317,8 +309,7 @@ export default function StokOpname() {
       console.error("loadLabs error:", e);
     }
   };
-
-  /* ------------------ INITIAL / REACTIVE LOADS ------------------ */
+  
   useEffect(() => {
     if (!token) {
       setHasToken(false);
@@ -362,7 +353,6 @@ export default function StokOpname() {
           await loadOpname(adminLabKodeRuangan); // hanya sekali
         }
 
-        // SUPERADMIN → tidak load apa-apa disini (baru load saat pilih lab)
       } catch (e) {
         console.error(e);
       } finally {
@@ -380,19 +370,16 @@ export default function StokOpname() {
 
     const loadForLab = async () => {
       try {
-        setInitialLoading(true);   // ✅ tampilkan loader global
+        setInitialLoading(true);   
         await loadOpname(selectedLabKode);
       } finally {
-        setInitialLoading(false);  // ✅ sembunyikan loader setelah data siap
+        setInitialLoading(false); 
       }
     };
 
     loadForLab();
   }, [selectedLabKode]);
 
-
-
-  /* ------------------ Helpers ------------------ */
   const filterByMonthYear = (lab: string | null) => {
     if (!lab || !selectedMonth || !selectedYear) return [];
     const m = Number(selectedMonth);
@@ -413,7 +400,7 @@ export default function StokOpname() {
     );
   };
 
-  /* ------------------ Export CSV/PDF ------------------ */
+  /* Export CSV/PDF */
   const handleExportCsv = (labParam?: string | null) => {
     const lab = labParam ?? (isAdminLab ? adminLabKodeRuangan : selectedLabKode);
     if (!lab) return toast.error("Pilih lab terlebih dahulu.");
@@ -547,7 +534,6 @@ export default function StokOpname() {
       return;
     }
 
-    // kodeRuanganToSend: backend expects FE to send kode_bagian as 'kode_ruangan' for admin case (controller maps it)
     const kodeRuanganToSend = isAdminLab ? authUser?.kode_bagian : selectedLabKode;
     if (!kodeRuanganToSend) return toast.error("Kode ruangan tidak ditemukan.");
 
@@ -573,7 +559,6 @@ export default function StokOpname() {
       toast.success("Stok Opname berhasil disimpan!");
       setDialogOpen(false);
 
-      // reload opname list (use the lab code that loadOpname expects)
       const labToReload = isAdminLab ? adminLabKodeRuangan : selectedLabKode;
       await loadOpname(labToReload ?? undefined);
     } catch (err: any) {
@@ -582,8 +567,6 @@ export default function StokOpname() {
       setLoading(false);
     }
   };
-
-  /* ------------------ Render ------------------ */
 
   if (isSuperadmin && initialLoading) {
     return (
@@ -656,7 +639,6 @@ export default function StokOpname() {
     const lab = labs.find((l) => l.kode_ruangan === selectedLabKode);
     const filteredByLab = opnameData.filter((o) => o.kode_ruangan === selectedLabKode);
 
-    // sort newest first (tanggal DESC)
     const sortedOpname = [...filteredByLab].sort(
       (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
     );
@@ -795,7 +777,7 @@ export default function StokOpname() {
           </Button>
         </div>
 
-        {/* ✅ DIALOG */}
+        {/* DIALOG */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
@@ -864,7 +846,7 @@ export default function StokOpname() {
           </DialogContent>
         </Dialog>
 
-        {/* ✅ RIWAYAT */}
+        {/* RIWAYAT */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
 

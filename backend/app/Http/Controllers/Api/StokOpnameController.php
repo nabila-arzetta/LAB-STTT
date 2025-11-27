@@ -8,18 +8,13 @@ use Illuminate\Http\Request;
 
 class StokOpnameController extends Controller
 {
-    // ============================================================
-    // 1. LIST STOK OPNAME (ROLE-BASED)
-    // ============================================================
     public function index(Request $request)
     {
         $user = auth()->user();
         $role = $user->role;
 
-        // SUPERADMIN → pakai ?lab=KODE_BAGIAN
         $paramBagian = strtoupper($request->query('lab', ''));
 
-        // ========================= SUPERADMIN =========================
         if ($role === 'superadmin') {
 
             $paramRuangan = strtoupper($request->query('lab', ''));
@@ -37,7 +32,6 @@ class StokOpnameController extends Controller
             ]);
         }
 
-        // ========================= ADMIN LAB =========================
         if ($role === 'admin_lab') {
 
             if (!$user->kode_bagian) {
@@ -68,22 +62,18 @@ class StokOpnameController extends Controller
             ]);
         }
 
-        // ========================= ROLE LAIN =========================
         return response()->json([
             'success' => false,
             'message' => "Role tidak diizinkan"
         ], 403);
     }
 
-    // ============================================================
-    // 2. GET BARANG UNTUK POPUP OPNAME
-    // ============================================================
+    // GET BARANG UNTUK OPNAME
     public function getBarangForOpname(Request $request)
     {
         $user = auth()->user();
         $role = $user->role;
 
-        // =============== SUPERADMIN (TIDAK DIUBAH, fixed $bagian) ===============
         if ($role === 'superadmin') {
 
             $bagian = strtoupper($request->query('lab', '')); // FIX variable
@@ -106,7 +96,6 @@ class StokOpnameController extends Controller
             $kodeRuangan = $lab->kode_ruangan;
         }
 
-        // =============== ADMIN LAB (FILTER PAKAI kode_ruangan) ===============
         else if ($role === 'admin_lab') {
 
             if (!$user->kode_bagian) {
@@ -127,7 +116,6 @@ class StokOpnameController extends Controller
             $kodeRuangan = $lab->kode_ruangan;
         }
 
-        // =========== FILTER MASTER BARANG SESUAI LAB ===============
         $barang = DB::table('master_barang AS mb')
             ->leftJoin('view_stok_inventaris AS vs', function ($join) use ($kodeRuangan) {
                 $join->on('vs.kode_barang', '=', 'mb.kode_barang')
@@ -149,9 +137,7 @@ class StokOpnameController extends Controller
         ]);
     }
 
-    // ============================================================
-    // 3. STORE OPNAME (SUPERADMIN TIDAK DIUBAH)
-    // ============================================================
+    // SIMPAN OPNAME
     public function store(Request $request)
     {
         $request->validate([
@@ -163,7 +149,6 @@ class StokOpnameController extends Controller
             'barang.*.stok_fisik'   => 'required|integer|min:0',
         ]);
 
-        // FE kirim kode_bagian → map ke kode_ruangan asli
         $lab = DB::table('master_lab')->where('kode_bagian', $request->kode_ruangan)->first();
         if (!$lab) {
             return response()->json([
@@ -174,7 +159,6 @@ class StokOpnameController extends Controller
 
         $kodeRuanganAsli = $lab->kode_ruangan;
 
-        // gunakan jam input FE, fallback ke now()
         $tanggalOpname = $request->tanggal_input
             ? date('Y-m-d H:i:s', strtotime($request->tanggal_input))
             : now();
@@ -183,7 +167,6 @@ class StokOpnameController extends Controller
 
         try {
 
-            // insert opname pakai timestamp user
             $idOpname = DB::table('stok_opname')->insertGetId([
                 'kode_ruangan' => $kodeRuanganAsli,
                 'tanggal'      => $tanggalOpname,
@@ -224,9 +207,7 @@ class StokOpnameController extends Controller
         }
     }
 
-    // ============================================================
-    // 4. EXPORT CSV (SUPERADMIN TIDAK DIUBAH)
-    // ============================================================
+    // EXPORT CSV OPNAME
     public function exportCsv(Request $request)
     {
         $request->validate([

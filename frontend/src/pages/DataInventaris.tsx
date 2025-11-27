@@ -152,7 +152,6 @@ export default function DataInventaris() {
     return map[status] ?? status;
   }
 
-  // === LOAD TRANSFER BARANG ===
   useEffect(() => {
     setLoadingTransfer(true);
     setErrorTransfer(null);
@@ -207,7 +206,7 @@ export default function DataInventaris() {
     return labs;
   }, [labs]);
 
-  // Jika belum pilih lab, tampilkan kartu lab; kalau pilih, tampilkan data item di lab tersebut
+  // Jika belum pilih lab, tampilkan kartu lab; kalau udah pilih, tampilkan data item di lab tersebut
   const baseData = useMemo(() => {
     if (!selectedLabKode) return inventaris;
 
@@ -230,14 +229,12 @@ export default function DataInventaris() {
     return baseData.filter((item) => (item.nama_barang || "").toLowerCase().includes(q));
   }, [baseData, searchTerm]);
 
-  // Pagination Inventaris
   const totalInventarisPages = Math.ceil(filteredData.length / itemsPerPage);
   const paginatedInventaris = useMemo(() => {
     const start = (inventarisPage - 1) * itemsPerPage;
     return filteredData.slice(start, start + itemsPerPage);
   }, [filteredData, inventarisPage]);
 
-  // Pagination Transfer
   const totalTransferPages = Math.ceil(filteredTransfer.length / itemsPerPage);
   const paginatedTransfer = useMemo(() => {
     const start = (transferPage - 1) * itemsPerPage;
@@ -312,7 +309,6 @@ export default function DataInventaris() {
     );
   }
 
-  // ================== RENDER ==================
   return (
     <div className="space-y-6">
 
@@ -342,7 +338,6 @@ export default function DataInventaris() {
         </div>
       )}
 
-      {/* ===== MODE PILIH LAB (SUPERADMIN & BELUM PILIH LAB) ===== */}
       {authUser?.role === "superadmin" && !selectedLabKode && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
           {availableLabs.map((lab, index) => {
@@ -372,7 +367,6 @@ export default function DataInventaris() {
         </div>
       )}
 
-      {/* ===== TAB ===== */}
       <div className="flex gap-2 border-b pb-2 mt-4">
         <Button
           variant={activeTab === "inventaris" ? "default" : "outline"}
@@ -391,7 +385,6 @@ export default function DataInventaris() {
         </Button>
       </div>
 
-      {/* ================= TAB CONTENT ================= */}
       {activeTab === "inventaris" ? (
         <>
           {/* ===== FILTER BAR INVENTARIS ===== */}
@@ -410,7 +403,7 @@ export default function DataInventaris() {
             </div>
           </div>
 
-          {/* ===== TABLE INVENTARIS ===== */}
+          {/* TABLE INVENTARIS */}
           <div className="overflow-x-auto mt-4 border rounded-md">
             <table className="min-w-full text-sm">
               <thead className="bg-muted">
@@ -445,7 +438,6 @@ export default function DataInventaris() {
             </table>
           </div>
 
-          {/* ===== PAGINATION INVENTARIS ===== */}
           {totalInventarisPages > 1 && (
             <div className="flex justify-center mt-4 gap-2">
               <Button
@@ -478,7 +470,7 @@ export default function DataInventaris() {
         </>
       ) : (
         <>
-          {/* ===== FILTER BAR TRANSFER ===== */}
+          {/* FILTER BAR TRANSFER */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 px-1">
 
             <div className="flex flex-col">
@@ -537,7 +529,7 @@ export default function DataInventaris() {
             </div>
           </div>
 
-          {/* ===== TABLE TRANSFER ===== */}
+          {/* TABLE TRANSFER */}
           <div className="overflow-x-auto mt-4 border rounded-md">
             <table className="min-w-full text-sm">
               <thead className="bg-muted">

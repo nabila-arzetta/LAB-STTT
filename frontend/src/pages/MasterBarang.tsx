@@ -23,7 +23,6 @@ import { api } from "@/lib/api";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
-/** ==== Types ==== */
 type Lab = {
   lab_id?: number | null;
   id_lab?: number | null;
@@ -42,7 +41,6 @@ type Item = {
   kategori?: "alat" | "bahan" | string | null;
   deskripsi?: string | null;
   status?: "aktif" | "nonaktif" | string;
-  // any other fields from backend can be present
   [k: string]: any;
 };
 
@@ -70,7 +68,6 @@ export const MasterBarang: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
-  // Form used for both create and edit (create UI preserved)
   const [form, setForm] = useState({
     kode_barang: "",
     nama_barang: "",
@@ -80,7 +77,6 @@ export const MasterBarang: React.FC = () => {
     keterangan: "",
   });
 
-  /** ==== Fetch labs (onlyManage:1 as before) ==== */
   useEffect(() => {
     let active = true;
     (async () => {
@@ -133,12 +129,10 @@ export const MasterBarang: React.FC = () => {
 
     if (labUser) {
       const id = getLabId(labUser);
-      if (id) setSelectedLabId(id); // Langsung buka tabel
+      if (id) setSelectedLabId(id); 
     }
   }, [labs, authUser]);
 
-
-  /** ==== Fetch items for selected lab ==== */
   const fetchItems = async (labId: number | null, q?: string): Promise<void> => {
     if (!labId) return;
     setLoadingItems(true);
@@ -147,7 +141,7 @@ export const MasterBarang: React.FC = () => {
       if (q && q.trim()) params.q = q.trim();
       const res = await api.get("/master-barang", { params });
       console.log("Fetch items response:", res);
-      // backend returns either array or {data: array}
+      
       const data = (res && (res as any).data) ?? res;
       const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
       const mapped: Item[] = raw.map((b: any) => ({
@@ -182,7 +176,6 @@ export const MasterBarang: React.FC = () => {
     return labs.find((l) => getLabId(l) === selectedLabId) ?? null;
   }, [labs, selectedLabId]);
 
-  /** ---- FILTER ALL COLUMNS (FAST SEARCH FE) ---- */
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return items;
 
@@ -204,13 +197,11 @@ export const MasterBarang: React.FC = () => {
     });
   }, [items, searchTerm]);
 
-  /** ---- FASTER STATS (NO WAITING) ---- */
   const totalItems = filteredItems.length;
   const activeItems = filteredItems.filter(
     (i) => (i.status ?? "").toLowerCase() === "aktif"
   ).length;
 
-  /** ==== Table columns (including deskripsi) ==== */
   const columns = [
   { key: "kode_barang", header: "Kode Barang" },
   { key: "nama_barang", header: "Nama Barang" },
@@ -254,8 +245,6 @@ export const MasterBarang: React.FC = () => {
   },
 ];
 
-
-  /** ==== Create handler (UI preserved) ==== */
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -270,10 +259,10 @@ export const MasterBarang: React.FC = () => {
         id_lab: selectedLabId,
       };
       const res = await api.post("/master-barang", payload);
-      // backend might return {message, data} or the item directly
+      
       const returned = (res && (res as any).data) ?? res;
       const item = Array.isArray(returned) ? returned[0] : returned.data ?? returned;
-      // normalize
+      
       const newItem: Item = {
         id: item.id,
         kode_barang: item.kode_barang,
@@ -284,11 +273,10 @@ export const MasterBarang: React.FC = () => {
         status: item.status ?? form.status_barang ?? "aktif",
         ...item,
       };
-      // push to current list
+      
       setItems((prev) => [...prev, newItem]);
       toast.success("Master Barang berhasil dibuat");
 
-      // reset form (preserve same form shape)
       setForm({
         kode_barang: "",
         nama_barang: "",
@@ -300,7 +288,7 @@ export const MasterBarang: React.FC = () => {
       setIsDialogOpen(false);
     } catch (err: any) {
       console.error("Create error:", err);
-      // if MySQL enum error from backend, give readable message
+      
       if (err?.response?.data?.message) {
         toast.error(err.response.data.message);
       } else toast.error("Gagal membuat Master Barang");
@@ -309,7 +297,7 @@ export const MasterBarang: React.FC = () => {
     }
   };
 
-  /** ==== Edit handler (dialog) ==== */
+  // Edit handler 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) return;
@@ -323,7 +311,7 @@ export const MasterBarang: React.FC = () => {
         status: form.status_barang,
       };
       await api.put(`/master-barang/${selectedItem.id}`, payload);
-      // update local
+      
       setItems((prev) =>
         prev.map((i) =>
           i.id === selectedItem.id
@@ -342,7 +330,7 @@ export const MasterBarang: React.FC = () => {
     }
   };
 
-  /** ==== Delete handler (dialog) ==== */
+  // Delete handler
   const handleDelete = async () => {
     if (!selectedItem) return;
     setSaving(true);
@@ -360,7 +348,6 @@ export const MasterBarang: React.FC = () => {
     }
   };
 
-  // helper: render lab card's jumlah barang (prefer lab.jumlah_barang if present)
   const getLabCount = async (labId: number): Promise<number> => {
     try {
       const res = await api.get("/master-barang", { params: { id_lab: labId } });
@@ -384,7 +371,7 @@ export const MasterBarang: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header when no lab selected */}
+      
       {!selectedLabId ? (
         <>
           <div>
@@ -420,7 +407,7 @@ export const MasterBarang: React.FC = () => {
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Package className="w-4 h-4" />
                             <span>
-                              {/* prefer jumlah_barang from lab if available, else show '—' until user opens it (we don't call API here to avoid double fetching) */}
+                              
                               {typeof lab.jumlah_barang === "number"
                                 ? `${lab.jumlah_barang} barang`
                                 : "— barang"}
@@ -438,10 +425,9 @@ export const MasterBarang: React.FC = () => {
         </>
       ) : (
         <>
-          {/* When a lab is selected: header + stats + table */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {/* TOMBOL BACK HANYA UNTUK SUPERADMIN */}
+              
               {authUser?.role === "superadmin" && (
                 <Button
                   variant="ghost"
@@ -463,7 +449,6 @@ export const MasterBarang: React.FC = () => {
               </div>
             </div>
 
-            {/* Create dialog (UI preserved; added kategori select) */}
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-primary hover:bg-primary-light">
@@ -651,7 +636,7 @@ export const MasterBarang: React.FC = () => {
                 actions={(item: Item) => (
                   <div className="flex items-center gap-1">
 
-                    {/* EDIT */}
+                    {/* EDIT BUTTON */}
                     <Button
                       size="icon"
                       variant="outline"
@@ -673,7 +658,7 @@ export const MasterBarang: React.FC = () => {
                       <Pencil className="w-4 h-4" />
                     </Button>
 
-                    {/* DELETE */}
+                    {/* DELETE BUTTON */}
                     <Button
                       size="icon"
                       variant="destructive"

@@ -8,16 +8,13 @@ use Illuminate\Http\Request;
 
 class StokController extends Controller
 {
-    /**
-     * Ambil data stok inventaris dari view_stok_inventaris
-     */
     public function index(Request $request)
     {
         try {
             $user = $request->user();
             $role = $user->role;
 
-            $lab = $request->query('lab'); // <-- ambil lab dari query param
+            $lab = $request->query('lab'); 
 
             $query = DB::table('view_stok_opname');
 
@@ -46,9 +43,7 @@ class StokController extends Controller
         }
     }
 
-    /**
-     * Ambil stok berdasarkan kode ruangan
-     */
+    // Ambil stok berdasarkan kode ruangan
     public function byLab($kodeRuangan)
     {
         try {
@@ -68,6 +63,7 @@ class StokController extends Controller
         }
     }
 
+    // Ambil daftar barang berdasarkan lab user
     public function getBarangByLab(Request $request)
     {
         try {
@@ -109,7 +105,6 @@ class StokController extends Controller
 
             $kodeRuangan = $user->kode_bagian;
 
-            // Barang berdasarkan LAB (mengambil stok terakhir berdasarkan opname)
             $data = DB::table('master_barang as b')
                 ->leftJoin('stok_opname as o', 'o.kode_ruangan', '=', DB::raw("'$kodeRuangan'"))
                 ->leftJoin('stok_opname_detail as d', 'd.id_opname', '=', 'o.id_opname')
