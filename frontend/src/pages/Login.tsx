@@ -29,9 +29,34 @@ const Login: React.FC = () => {
 
     setIsLoading(true);
     try {
-      await login(email, password);
+    // LOGIN SUPERADMIN (email)
+    if (email.includes("@")) {
+      await login(email, password); // memakai AuthContext
+      }
+      // tambahan rafa
+      // LOGIN SIMAK (username)
+      else {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/simak/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: email,
+            password: password,
+          }),
+        });
+
+        if (!res.ok) throw new Error("Login SIMAK gagal");
+
+        const data = await res.json();
+
+        // Simpan token manual
+        localStorage.setItem("token", data.token);
+      }
+
       toast.success("Login berhasil!");
-      const redirect = (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
+      const redirect =
+        (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
+
       navigate(redirect, { replace: true });
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Login gagal");
