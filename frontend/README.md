@@ -28,6 +28,9 @@ Frontend aplikasi operasional laboratorium Politeknik STTT Bandung
 
    VITE_API_BASE_URL=http://127.0.0.1:8000/api
 
+   # SIMAK API
+   VITE_SIMAK_API_URL=https://services.stttekstil.ac.id/api
+
    # Port default untuk Vite dev server
    VITE_PORT=8080
 
