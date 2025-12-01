@@ -18,8 +18,8 @@ Proyek ini terdiri dari dua bagian utama:
   - Database (MySQL, PostgreSQL, atau SQLite)
 
 - **Frontend:**
-  - Node.js (versi 16 atau lebih tinggi)
-  - npm atau yarn
+  - Node.js
+  - npm
 
 ## Quick Start
 
@@ -35,7 +35,7 @@ cd backend
 composer install
 npm install
 cp .env.example .env
-# Edit .env untuk konfigurasi database
+# Edit .env untuk konfigurasi database (lihat contoh di backend/README.md)
 php artisan key:generate
 php artisan migrate
 php artisan db:seed
@@ -45,7 +45,7 @@ php artisan db:seed
 ```bash
 cd ../frontend
 npm install
-# Buat file .env jika diperlukan untuk API_BASE_URL
+cp .env.example .env  # Jika ada, atau buat .env baru (lihat contoh di frontend/README.md)
 ```
 
 ### 4. Jalankan Aplikasi

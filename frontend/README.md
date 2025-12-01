@@ -19,9 +19,27 @@ Frontend aplikasi operasional laboratorium Politeknik STTT Bandung
    ```
 
 3. **Setup Environment**
-   Buat file `.env` di root folder frontend dan sesuaikan konfigurasi API backend:
-   ```
-   VITE_API_BASE_URL=http://localhost:8000/api
+   Buat file `.env` di root folder frontend dan sesuaikan konfigurasi API backend.
+
+   **Contoh file .env:**
+   ```env
+   # Nama aplikasi
+   VITE_APP_NAME="STTT Inventory Lab"
+
+   VITE_API_BASE_URL=http://127.0.0.1:8000/api
+
+   # Port default untuk Vite dev server
+   VITE_PORT=8080
+
+   # (opsional) alamat FE
+   VITE_APP_URL=http://localhost:8080
+
+   # Default language/locale
+   VITE_DEFAULT_LOCALE=id
+   VITE_FALLBACK_LOCALE=id
+
+   # Mode debug (true/false)
+   VITE_DEBUG=true
    ```
 
 ## Menjalankan Aplikasi
