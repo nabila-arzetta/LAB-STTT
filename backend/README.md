@@ -31,21 +31,22 @@ Aplikasi operasional laboratorium Politeknik STTT Bandung
    ```
    Edit file `.env` dan sesuaikan konfigurasi database dan lainnya.
 
-   **Contoh file .env:**
+   **Contoh file .env (berdasarkan konfigurasi aktual):**
    ```env
-   APP_NAME="o-lab"
+   APP_NAME=Laravel
    APP_ENV=local
-   APP_KEY=
+   APP_KEY=base64:jHnn6vz3i/dwZtWuPnqU68GMBlmuqJldi1e3rqRdbPY=
    APP_DEBUG=true
-   APP_TIMEZONE=UTC
-   APP_URL=http://localhost:8000
+   APP_URL=http://127.0.0.1:8000
 
    APP_LOCALE=en
    APP_FALLBACK_LOCALE=en
    APP_FAKER_LOCALE=en_US
 
    APP_MAINTENANCE_DRIVER=file
-   APP_MAINTENANCE_STORE=database
+   # APP_MAINTENANCE_STORE=database
+
+   PHP_CLI_SERVER_WORKERS=4
 
    BCRYPT_ROUNDS=12
 
@@ -55,24 +56,31 @@ Aplikasi operasional laboratorium Politeknik STTT Bandung
    LOG_LEVEL=debug
 
    DB_CONNECTION=mysql
-   DB_HOST=127.0.0.1
+   DB_HOST=103.146.144.36
    DB_PORT=3306
-   DB_DATABASE=o_lab
-   DB_USERNAME=root
-   DB_PASSWORD=
+   DB_DATABASE=sttt-lab
+   DB_USERNAME=user_dev
+   DB_PASSWORD=adminDev
 
+   SESSION_DOMAIN=localhost
+   SANCTUM_STATEFUL_DOMAINS=localhost:8080,127.0.0.1:8080
    SESSION_DRIVER=database
    SESSION_LIFETIME=120
    SESSION_ENCRYPT=false
    SESSION_PATH=/
    SESSION_DOMAIN=null
 
+   # manggil API SIMAK
+   SIMAK_CLIENT_EMAIL=test2@example.com
+   SIMAK_CLIENT_PASSWORD=12345
+   SIMAK_BASE_URL=https://services.stttekstil.ac.id/api
+
    BROADCAST_CONNECTION=log
    FILESYSTEM_DISK=local
    QUEUE_CONNECTION=database
 
    CACHE_STORE=database
-   CACHE_PREFIX=
+   # CACHE_PREFIX=
 
    MEMCACHED_HOST=127.0.0.1
 
@@ -82,11 +90,11 @@ Aplikasi operasional laboratorium Politeknik STTT Bandung
    REDIS_PORT=6379
 
    MAIL_MAILER=log
+   MAIL_SCHEME=null
    MAIL_HOST=127.0.0.1
    MAIL_PORT=2525
    MAIL_USERNAME=null
    MAIL_PASSWORD=null
-   MAIL_ENCRYPTION=null
    MAIL_FROM_ADDRESS="hello@example.com"
    MAIL_FROM_NAME="${APP_NAME}"
 
@@ -97,6 +105,7 @@ Aplikasi operasional laboratorium Politeknik STTT Bandung
    AWS_USE_PATH_STYLE_ENDPOINT=false
 
    VITE_APP_NAME="${APP_NAME}"
+   VITE_API_BASE_URL=http://127.0.0.1:8000/api
    ```
 
 5. **Generate Application Key**
