@@ -9,7 +9,6 @@ class TransferBarang extends Model
     protected $table = 'transfer_barang';
     protected $primaryKey = 'id_transfer';
 
-    // kalau tabel punya created_at & updated_at, biarkan true (default)
     public $timestamps = true;
 
     protected $fillable = [
@@ -27,8 +26,7 @@ class TransferBarang extends Model
         'approved_at' => 'datetime',
     ];
 
-    // === RELASI ===
-
+    // RELASI
     public function detail()
     {
         return $this->hasMany(TransferBarangDetail::class, 'id_transfer', 'id_transfer');

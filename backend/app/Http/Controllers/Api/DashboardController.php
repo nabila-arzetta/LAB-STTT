@@ -9,115 +9,120 @@ use Illuminate\Support\Facades\DB;
 class DashboardController extends Controller
 {
     public function summary(Request $request)
-    {
-        try {
-            $user = $request->user();
+{
+    try {
+        $user = $request->user();
 
-            // Ambil bagian user (lab)
-            $bagian = DB::table('bagian')->where('kode_bagian', $user->kode_bagian)->first();
+        $labUser = DB::table('master_lab')
+            ->where('kode_bagian', $user->kode_bagian)
+            ->first();
 
-            // Tentukan kode ruangan untuk admin lab
-            if ($bagian) {
-                $nama = strtoupper(trim($bagian->nama_bagian));
-                $kodeRuangan = 'L-' . ltrim($nama, 'L-'); 
-            } else {
-                $kodeRuangan = null;
-            }
+        $kodeRuangan = $labUser
+            ? strtoupper(trim($labUser->kode_ruangan))
+            : null;
 
-            $isSuperAdmin = $user->role === 'superadmin';
+        $labName = $labUser
+            ? ucwords(strtolower(str_replace(['LAB.', 'LAB'], '', $labUser->nama_lab)))
+            : null;
 
-            // ============================
-            //     STAT SUPERADMIN
-            // ============================
-            if ($isSuperAdmin) {
-                $totalBarang = DB::table('master_barang')->count();
-                $totalUser   = DB::table('users')->count();
-                $totalLab    = DB::table('bagian')->count();
-            }
+        $isSuperAdmin = $user->role === 'superadmin';
 
-            // ============================
-            //     STAT ADMIN LAB
-            // ============================
-            if (!$isSuperAdmin) {
-                $barangQuery = DB::table('master_barang')
-                    ->when($kodeRuangan, fn($q) => $q->where('kode_ruangan', $kodeRuangan));
+        $totalBarang   = 0;
+        $barangMasuk   = 0;
+        $barangKeluar  = 0;
+        $antrianBarang = 0;
+        $totalUser     = null;
+        $totalLab      = null;
 
-                $totalBarang = $barangQuery->count();
+        //  STAT SUPERADMIN
+        if ($isSuperAdmin) {
+            $totalBarang = DB::table('master_barang')->count();
+            $totalUser   = DB::table('users')->count();
+            $totalLab    = DB::table('master_lab')
+                ->where('status', 'aktif')
+                ->count();
+        }
 
-                $barangMasuk = DB::table('master_barang')
-                    ->when($kodeRuangan, fn($q) => $q->where('kode_ruangan', $kodeRuangan))
-                    ->whereDate('created_at', '>=', now()->startOfMonth())
-                    ->count();
+        // STAT ADMIN LAB
+        if (!$isSuperAdmin) {
+            $barangQuery = DB::table('master_barang')
+                ->when($kodeRuangan, fn ($q) =>
+                    $q->where('kode_ruangan', $kodeRuangan)
+                );
 
-                $barangKeluar = DB::table('master_barang')
-                    ->when($kodeRuangan, fn($q) => $q->where('kode_ruangan', $kodeRuangan))
-                    ->whereDate('updated_at', '>=', now()->startOfMonth())
-                    ->count();
+            $totalBarang = $barangQuery->count();
 
-                $antrianBarang = 0;
+            $barangMasuk = DB::table('master_barang')
+                ->when($kodeRuangan, fn ($q) =>
+                    $q->where('kode_ruangan', $kodeRuangan)
+                )
+                ->whereDate('created_at', '>=', now()->startOfMonth())
+                ->count();
 
-                $totalUser = null;
-                $totalLab = null;
-            }
+            $barangKeluar = DB::table('master_barang')
+                ->when($kodeRuangan, fn ($q) =>
+                    $q->where('kode_ruangan', $kodeRuangan)
+                )
+                ->whereDate('updated_at', '>=', now()->startOfMonth())
+                ->count();
 
-            // ============================
-            //        LOW STOCK
-            // ============================
-            $lowStock = DB::table('master_barang')
-                ->when(!$isSuperAdmin && $kodeRuangan, fn($q) => $q->where('kode_ruangan', $kodeRuangan))
-                ->orderBy('updated_at', 'desc')
-                ->limit(5)
-                ->get(['id as barang_id', 'nama_barang', DB::raw('3 as stok')]);
+            $antrianBarang = DB::table('transfer_barang')
+                ->when($kodeRuangan, function ($q) use ($kodeRuangan) {
+                    $q->whereRaw(
+                        'TRIM(UPPER(kode_ruangan_tujuan)) = TRIM(UPPER(?))',
+                        [$kodeRuangan]
+                    );
+                })
+                ->whereRaw('TRIM(LOWER(status)) = ?', ['pending'])
+                ->count();
+        }
 
-
-            // ============================
-            //        RECENT TRANSACTION
-            // ============================
-            $recent = DB::table('master_barang')
-                ->when(!$isSuperAdmin && $kodeRuangan, fn($q) => $q->where('kode_ruangan', $kodeRuangan))
-                ->orderByDesc('updated_at')
-                ->limit(6)
-                ->get()
-                ->map(fn($row) => [
-                    'id' => $row->id,
-                    'type' => 'update',
-                    'item' => $row->nama_barang,
-                    'quantity' => rand(1, 5),
-                    'time' => date('Y-m-d', strtotime($row->updated_at ?? now())),
-                    'status' => 'selesai',
-                ]);
-
-            // ============================
-            //       RETURN RESPONSE
-            // ============================
-            return response()->json([
-                'debug' => [
-                    'role' => $user->role,
-                    'kode_bagian' => $user->kode_bagian,
-                    'kode_ruangan' => $kodeRuangan,
-                    'isSuperAdmin' => $isSuperAdmin,
-                ],
-                'labName' => $bagian->nama_bagian ?? null,
-
-                'stats' => [
-                    'totalBarang' => $totalBarang,
-                    'barangMasuk' => $barangMasuk ?? null,
-                    'barangKeluar' => $barangKeluar ?? null,
-                    'antrianBarang' => $antrianBarang ?? null,
-                    'totalUser' => $totalUser,
-                    'totalLab' => $totalLab,
-                ],
-
-                'lowStock' => $lowStock,
-                'recent' => $recent,
+        // RECENT TRANSACTION
+        $recent = DB::table('master_barang')
+            ->when(!$isSuperAdmin && $kodeRuangan, fn ($q) =>
+                $q->where('kode_ruangan', $kodeRuangan)
+            )
+            ->orderByDesc('updated_at')
+            ->limit(6)
+            ->get()
+            ->map(fn ($row) => [
+                'id'       => $row->id,
+                'type'     => 'update',
+                'item'     => $row->nama_barang,
+                'quantity' => rand(1, 5),
+                'time'     => date('Y-m-d', strtotime($row->updated_at ?? now())),
+                'status'   => 'selesai',
             ]);
 
-        } catch (\Throwable $e) {
-            return response()->json([
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-            ], 500);
-        }
+        // RETURN RESPONSE
+        return response()->json([
+            'debug' => [
+                'role'          => $user->role,
+                'kode_bagian'   => $user->kode_bagian,
+                'kode_ruangan' => $kodeRuangan,
+                'isSuperAdmin' => $isSuperAdmin,
+            ],
+
+            'labName' => $labName,
+
+            'stats' => [
+                'totalBarang'   => $totalBarang,
+                'barangMasuk'   => $barangMasuk,
+                'barangKeluar'  => $barangKeluar,
+                'antrianBarang' => $antrianBarang,
+                'totalUser'     => $totalUser,
+                'totalLab'      => $totalLab,
+            ],
+
+            'recent'   => $recent,
+        ]);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'line'  => $e->getLine(),
+            'file'  => $e->getFile(),
+        ], 500);
     }
+}
+
 }

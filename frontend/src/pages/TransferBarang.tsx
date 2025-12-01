@@ -8,15 +8,21 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, CheckCircle2, XCircle, ArrowLeft, Building2, ChevronRight} from "lucide-react";
+import {
+  Plus,
+  CheckCircle2,
+  XCircle,
+  ArrowLeft,
+  Building2,
+  ChevronRight,
+  Pencil,
+  Trash2
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 
-/* ==========================
-      TYPE DEFINITIONS
-=========================== */
 type Barang = {
   kode_barang: string;
   nama_barang: string;
@@ -57,9 +63,7 @@ type Transfer = {
   detail: TransferDetail[];
 };
 
-/* ==========================
-      BADGE
-=========================== */
+/* BADGE */
 const StatusBadge = ({ status }: { status: TransferStatus }) => {
   const classes: Record<TransferStatus, string> = {
     pending: "bg-yellow-500 text-black hover:bg-yellow-500",
@@ -84,9 +88,7 @@ const StatusBadge = ({ status }: { status: TransferStatus }) => {
   );
 };
 
-/* ==========================
-      MAIN COMPONENT
-=========================== */
+/* MAIN COMPONENT */
 export default function TransferBarang() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -99,18 +101,16 @@ export default function TransferBarang() {
   const [barangs, setBarangs] = useState<Barang[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // lab milik user (kode_ruangan) – dipakai admin_lab
+  // lab milik user (kode_ruangan)
   const userLab = useMemo(() => {
     if (!user || labs.length === 0) return undefined;
 
-    // 1. Cocokkan berdasarkan kode_bagian
     let lab = labs.find(
       (l) =>
         String(l.kode_bagian).toUpperCase() ===
         String(user.kode_bagian).toUpperCase()
     );
 
-    // 2. Jika tidak ketemu → fallback pakai prefix username (sama seperti backend)
     if (!lab) {
       const prefix = String(user.username).split("_")[0].toUpperCase(); 
       const guess = "L-" + prefix;
@@ -134,8 +134,13 @@ export default function TransferBarang() {
     });
   };
 
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const [search, setSearch] = useState("");
+  
+  const [filterTanggalAwal, setFilterTanggalAwal] = useState("");
+  const [filterTanggalAkhir, setFilterTanggalAkhir] = useState("");
+  const [filterKodeBarang, setFilterKodeBarang] = useState("");
 
   const [form, setForm] = useState({
     kode_barang: "",
@@ -149,19 +154,22 @@ export default function TransferBarang() {
   const [selected, setSelected] = useState<Transfer | null>(null);
   const [activeTab, setActiveTab] = useState<"out" | "in">("out");
 
-  // ==== STATE MODAL ACC ====
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [approveTarget, setApproveTarget] = useState<Transfer | null>(null);
   const [approveDetails, setApproveDetails] = useState<
     (TransferDetail & { qty_approved: number })[]
   >([]);
 
-  // ==== STATE MODAL TOLAK ====
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<Transfer | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  // ==== STATE SUPERADMIN: LAB YANG DIPILIH ====
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Transfer | null>(null);
+
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Transfer | null>(null);
+
   const [selectedKodeRuangan, setSelectedKodeRuangan] = useState<string | null>(
     null
   );
@@ -177,6 +185,22 @@ export default function TransferBarang() {
         : null,
     [labs, selectedKodeRuangan]
   );
+
+  const resolvedLab = useMemo(() => {
+    if (isSuperAdmin) return selectedLab;
+
+    if (isAdminLab && userLab) {
+      return (
+        labs.find(
+          (l) =>
+            String(l.kode_ruangan).toUpperCase() ===
+            String(userLab).toUpperCase()
+        ) ?? null
+      );
+    }
+
+    return null;
+  }, [isSuperAdmin, isAdminLab, selectedLab, userLab, labs]);
 
   const openApproveModal = (transfer: Transfer) => {
     setApproveTarget(transfer);
@@ -210,9 +234,6 @@ export default function TransferBarang() {
     }
   };
 
-  /* ==========================
-      FETCH DATA
-  =========================== */
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -253,9 +274,6 @@ export default function TransferBarang() {
     }
   }, [isAdminLab, userLab]);
 
-  /* ==========================
-      CREATE TRANSFER
-  =========================== */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -294,10 +312,6 @@ export default function TransferBarang() {
       });
     }
   };
-
-  /* ==========================
-      APPROVE HANDLERS
-  =========================== */
 
   const handleApproveQtyChange = (kode: string, value: string) => {
     setApproveDetails((prev) =>
@@ -341,9 +355,6 @@ export default function TransferBarang() {
     }
   };
 
-  /* ==========================
-      REJECT HANDLERS
-  =========================== */
   const handleRejectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectTarget) return;
@@ -353,10 +364,66 @@ export default function TransferBarang() {
     setRejectReason("");
   };
 
-  /* ==========================
-      DATA VIEW (ADMIN vs SUPERADMIN)
-  =========================== */
+  const openEditModal = (t: Transfer) => {
+    setEditTarget(t);
 
+    setForm({
+      kode_barang: t.detail?.[0]?.kode_barang ?? "",
+      jumlah: t.detail?.[0]?.quantity ?? 1,
+      dariLab: t.kode_ruangan_dari,
+      keLab: t.kode_ruangan_tujuan,
+      tanggal: t.tanggal,
+      catatan: t.keterangan ?? "",
+    });
+
+    setIsEditOpen(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+
+    try {
+      await api.put(`/transfer-barang/${editTarget.id_transfer}`, {
+        kode_ruangan_dari: form.dariLab,
+        kode_ruangan_tujuan: form.keLab,
+        tanggal: form.tanggal,
+        keterangan: form.catatan,
+        detail: [{ kode_barang: form.kode_barang, quantity: form.jumlah }],
+      });
+
+      toast({ title: "Transfer berhasil diperbarui" });
+      setIsEditOpen(false);
+      setEditTarget(null);
+      loadAll();
+    } catch (err: any) {
+      toast({
+        title: "Gagal memperbarui transfer",
+        description: err?.response?.data?.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const confirmDeleteTransfer = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await api.delete(`/transfer-barang/${deleteTarget.id_transfer}`);
+
+      toast({ title: "Transfer berhasil dihapus" });
+      setIsDeleteOpen(false);
+      setDeleteTarget(null);
+      loadAll();
+    } catch (err: any) {
+      toast({
+        title: "Gagal menghapus transfer",
+        description: err?.response?.data?.message,
+        variant: "destructive",
+      });
+    }
+  };
+  
   // lab yang sedang "di-view" di tabel
   const viewKodeRuangan = isSuperAdmin
     ? selectedLab?.kode_ruangan ?? ""
@@ -381,15 +448,46 @@ export default function TransferBarang() {
         : inbound
       : [];
 
-  const tableRows = currentTransfers.flatMap((t) =>
-    t.detail && t.detail.length > 0
+  // Flatten
+  const rawRows = currentTransfers.flatMap((t) =>
+    t.detail?.length
       ? t.detail.map((d) => ({ transfer: t, detail: d }))
       : [{ transfer: t, detail: null }]
   );
 
-  /* ==========================
-      RENDER
-  =========================== */
+  // Filter
+  const tableRows = rawRows.filter((row) => {
+    const t = row.transfer;
+    const d = row.detail;
+
+    const q = search.toLowerCase();
+
+    // SEARCH 
+    const matchSearch =
+      !search ||
+      t.tanggal.toLowerCase().includes(q) ||
+      (d?.kode_barang?.toLowerCase().includes(q) ?? false) ||
+      (d?.nama_barang?.toLowerCase().includes(q) ?? false) ||
+      (t.keterangan?.toLowerCase().includes(q) ?? false);
+
+    // KODE BARANG 
+    const kodeOk =
+      !filterKodeBarang ||
+      (d?.kode_barang ?? "")
+        .toLowerCase()
+        .includes(filterKodeBarang.toLowerCase());
+
+    // TANGGAL 
+    const dt = new Date(t.tanggal);
+
+    const awalOk =
+      !filterTanggalAwal || dt >= new Date(filterTanggalAwal);
+
+    const akhirOk =
+      !filterTanggalAkhir || dt <= new Date(filterTanggalAkhir);
+
+    return matchSearch && kodeOk && awalOk && akhirOk;
+  });
 
   if (loading) {
     return (
@@ -402,13 +500,9 @@ export default function TransferBarang() {
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-primary">Transfer Barang</h1>
+          <h1 className="text-2xl font-bold text-primary">Transfer Barang</h1>
           {isSuperAdmin && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {selectedLab
-                ? `Lab dipilih: ${selectedLab.nama_lab} (${selectedLab.kode_ruangan})`
-                : "Pilih lab terlebih dahulu untuk melihat data transfer."}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1"> </p>
           )}
         </div>
 
@@ -422,16 +516,20 @@ export default function TransferBarang() {
             </DialogTrigger>
 
             {/* FORM DIALOG */}
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>Buat Transfer Barang</DialogTitle>
               </DialogHeader>
 
               <form onSubmit={handleSubmit} className="space-y-4 py-2">
                 {/* BARANG */}
-                <div>
-                  <label>Barang</label>
+                <div className="flex flex-col">
+                  <label htmlFor="barang" className="text-sm font-medium mb-1">
+                    Barang
+                  </label>
                   <select
+                    id="barang"
+                    name="barang"
                     value={form.kode_barang}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, kode_barang: e.target.value }))
@@ -448,9 +546,13 @@ export default function TransferBarang() {
                 </div>
 
                 {/* JUMLAH */}
-                <div>
-                  <label>Jumlah</label>
+                <div className="flex flex-col">
+                  <label htmlFor="jumlah" className="text-sm font-medium mb-1">
+                    Jumlah
+                  </label>
                   <Input
+                    id="jumlah"
+                    name="jumlah"
                     type="number"
                     min={1}
                     value={form.jumlah}
@@ -463,11 +565,15 @@ export default function TransferBarang() {
                   />
                 </div>
 
-                {/* LAB */}
+                {/* LAB (DARI • KE) */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label>Dari Lab</label>
+                  <div className="flex flex-col">
+                    <label htmlFor="dariLab" className="text-sm font-medium mb-1">
+                      Dari Lab
+                    </label>
                     <select
+                      id="dariLab"
+                      name="dariLab"
                       value={form.dariLab}
                       disabled={isAdminLab}
                       onChange={(e) =>
@@ -484,9 +590,13 @@ export default function TransferBarang() {
                     </select>
                   </div>
 
-                  <div>
-                    <label>Ke Lab</label>
+                  <div className="flex flex-col">
+                    <label htmlFor="keLab" className="text-sm font-medium mb-1">
+                      Ke Lab
+                    </label>
                     <select
+                      id="keLab"
+                      name="keLab"
                       value={form.keLab}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, keLab: e.target.value }))
@@ -505,9 +615,13 @@ export default function TransferBarang() {
 
                 {/* TANGGAL & CATATAN */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label>Tanggal</label>
+                  <div className="flex flex-col">
+                    <label htmlFor="tanggal" className="text-sm font-medium mb-1">
+                      Tanggal
+                    </label>
                     <Input
+                      id="tanggal"
+                      name="tanggal"
                       type="date"
                       value={form.tanggal}
                       onChange={(e) =>
@@ -516,9 +630,13 @@ export default function TransferBarang() {
                     />
                   </div>
 
-                  <div>
-                    <label>Catatan</label>
+                  <div className="flex flex-col">
+                    <label htmlFor="catatan" className="text-sm font-medium mb-1">
+                      Catatan (opsional)
+                    </label>
                     <Input
+                      id="catatan"
+                      name="catatan"
                       value={form.catatan}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, catatan: e.target.value }))
@@ -528,6 +646,7 @@ export default function TransferBarang() {
                   </div>
                 </div>
 
+                {/* BUTTON */}
                 <div className="flex justify-end gap-2 pt-3">
                   <Button
                     type="button"
@@ -546,7 +665,7 @@ export default function TransferBarang() {
         )}
       </div>
 
-      {/* ====== PILIH LAB (KHUSUS SUPERADMIN) ====== */}
+      {/* PILIH LAB (KHUSUS SUPERADMIN) */}
       {isSuperAdmin && !selectedLab && (
         <div className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -570,7 +689,7 @@ export default function TransferBarang() {
                   <h3 className="font-semibold text-lg">{lab.nama_lab}</h3>
 
                   <p className="text-sm text-muted-foreground">
-                    {lab.kode_ruangan} — {lab.kode_bagian}
+                    {lab.kode_ruangan} - {lab.kode_bagian}
                   </p>
                 </div>
               ))}
@@ -578,32 +697,30 @@ export default function TransferBarang() {
         </div>
       )}
 
-      {/* ====== TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB ====== */}
+      {/* TAB & TABEL: ADMIN_LAB ATAU SUPERADMIN YANG SUDAH PILIH LAB */}
       {(isAdminLab || selectedLab) && (
         <>
-          {/* Header */}
-          <div className="flex items-center gap-4">
           {isSuperAdmin && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedKodeRuangan(null)}
-              className="shrink-0"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          )}
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedKodeRuangan(null)}
+                className="shrink-0"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
 
-          <div>
-            <h1 className="text-3xl font-bold text-primary">
-              {selectedLab?.nama_lab ?? "Laboratorium"}
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {selectedLab?.kode_bagian ?? ""}
-              {selectedLab?.lokasi ? ` - ${selectedLab.lokasi}` : ""}
-            </p>
-          </div>
-        </div>
+              <div>
+                <h1 className="text-lg font-bold text-primary">
+                  {resolvedLab?.nama_lab ?? ""}
+                </h1>
+                <p className="text-muted-foreground mt-1">
+                  {resolvedLab?.kode_ruangan ?? ""} - {resolvedLab?.kode_bagian ?? ""}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* TAB SWITCHER */}
           <div className="flex justify-between items-center gap-2 border-b pb-2">
@@ -624,6 +741,52 @@ export default function TransferBarang() {
             </div>
           </div>
 
+          {/* FILTER BAR */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4 px-1">
+
+            {/* SEARCH */}
+            <div className="flex flex-col">
+              <label htmlFor="searchTransfer" className="text-xs text-muted-foreground mb-1">
+                Pencarian
+              </label>
+              <Input
+                id="searchTransfer"
+                name="searchTransfer"
+                placeholder="Cari..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+
+            {/* TANGGAL AWAL */}
+            <div className="flex flex-col">
+              <label htmlFor="filterTanggalAwal" className="text-xs text-muted-foreground mb-1">
+                Tanggal Awal
+              </label>
+              <Input
+                id="filterTanggalAwal"
+                name="filterTanggalAwal"
+                type="date"
+                value={filterTanggalAwal}
+                onChange={(e) => setFilterTanggalAwal(e.target.value)}
+              />
+            </div>
+
+            {/* TANGGAL AKHIR */}
+            <div className="flex flex-col">
+              <label htmlFor="filterTanggalAkhir" className="text-xs text-muted-foreground mb-1">
+                Tanggal Akhir
+              </label>
+              <Input
+                id="filterTanggalAkhir"
+                name="filterTanggalAkhir"
+                type="date"
+                value={filterTanggalAkhir}
+                onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* TABEL */}
           <div className="overflow-x-auto mt-4">
             <table className="min-w-full text-sm border rounded-md overflow-hidden">
@@ -638,8 +801,8 @@ export default function TransferBarang() {
                   <th className="p-3 text-left">Satuan</th>
                   <th className="p-3 text-left">Keterangan</th>
                   <th className="p-3 text-left">Status</th>
-                  {isAdminLab && activeTab === "in" && (
-                    <th className="p-3 text-left">Aksi</th>
+                  {isAdminLab && (
+                    <th className="p-3 text-left w-[90px]">Aksi</th>
                   )}
                 </tr>
               </thead>
@@ -684,11 +847,13 @@ export default function TransferBarang() {
                           <StatusBadge status={t.status} />
                         </td>
 
-                        {/* Aksi HANYA untuk admin_lab, tab permintaan masuk */}
-                        {isAdminLab && activeTab === "in" && (
-                          <td className="p-3">
+                        {/* Aksi */}
+                        {isAdminLab && (
+                          <td className="p-3 w-[90px]">
                             <div className="flex items-center gap-1">
-                              {t.status === "pending" && (
+
+                              {/* TAB MASUK: ACC / TOLAK */}
+                              {activeTab === "in" && t.status === "pending" && (
                                 <>
                                   <Button
                                     size="icon"
@@ -707,6 +872,31 @@ export default function TransferBarang() {
                                   </Button>
                                 </>
                               )}
+
+                              {/* TAB KELUAR: EDIT / DELETE */}
+                              {activeTab === "out" && t.status === "pending" && (
+                                <>
+                                  <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={() => openEditModal(t)}
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setDeleteTarget(t);
+                                      setIsDeleteOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+
                             </div>
                           </td>
                         )}
@@ -720,7 +910,7 @@ export default function TransferBarang() {
         </>
       )}
 
-      {/* MODAL ACC – tetap, hanya bisa dipakai admin_lab karena aksi disembunyikan dari superadmin */}
+      {/* MODAL ACC */}
       <Dialog
         open={isApproveOpen}
         onOpenChange={(open) => {
@@ -730,7 +920,7 @@ export default function TransferBarang() {
           }
         }}
       >
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Setujui Permintaan Transfer</DialogTitle>
           </DialogHeader>
@@ -831,7 +1021,7 @@ export default function TransferBarang() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL TOLAK – tetap, hanya bisa dipakai admin_lab karena aksi disembunyikan dari superadmin */}
+      {/* MODAL TOLAK */}
       <Dialog
         open={isRejectOpen}
         onOpenChange={(open) => {
@@ -842,7 +1032,7 @@ export default function TransferBarang() {
           }
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Tolak Permintaan Transfer</DialogTitle>
           </DialogHeader>
@@ -898,6 +1088,119 @@ export default function TransferBarang() {
             </form>
           )}
         </DialogContent>
+
+        {/* MODAL EDIT TRANSFER */}
+        <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+          <DialogContent className="max-w-2xl" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Edit Transfer Barang</DialogTitle>
+            </DialogHeader>
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
+              <div className="flex flex-col">
+                <label htmlFor="editBarang">Barang</label>
+                <select
+                  id="editBarang"
+                  value={form.kode_barang}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, kode_barang: e.target.value }))
+                  }
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Pilih barang</option>
+                  {barangs.map((b) => (
+                    <option key={b.kode_barang} value={b.kode_barang}>
+                      {b.nama_barang} ({b.satuan})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor="editJumlah">Jumlah</label>
+                <Input
+                  id="editJumlah"
+                  type="number"
+                  min={1}
+                  value={form.jumlah}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, jumlah: Number(e.target.value) }))
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor="editKeLab">Ke Lab</label>
+                <select
+                  id="editKeLab"
+                  value={form.keLab}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, keLab: e.target.value }))
+                  }
+                  className="w-full border rounded-md p-2"
+                >
+                  <option value="">Pilih lab</option>
+                  {labs.map((l) => (
+                    <option key={l.kode_ruangan} value={l.kode_ruangan}>
+                      {l.nama_lab}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor="editTanggal">Tanggal</label>
+                <Input
+                  id="editTanggal"
+                  type="date"
+                  value={form.tanggal}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, tanggal: e.target.value }))
+                  }
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label htmlFor="editCatatan">Catatan</label>
+                <Input
+                  id="editCatatan"
+                  value={form.catatan}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, catatan: e.target.value }))
+                  }
+                  placeholder="Opsional"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3">
+                <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+                  Batal
+                </Button>
+                <Button type="submit">Simpan Perubahan</Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* MODAL DELETE TRANSFER */}
+        <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+          <DialogContent className="max-w-sm text-center" aria-describedby={undefined}>
+            <DialogHeader>
+              <DialogTitle>Hapus Transfer?</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm">Apakah Anda yakin ingin menghapus transfer ini?</p>
+
+            <div className="flex justify-center gap-2 mt-4">
+              <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
+                Batal
+              </Button>
+              <Button variant="destructive" onClick={confirmDeleteTransfer}>
+                <Trash2 className="w-4 h-4 mr-2" /> Hapus
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </Dialog>
     </div>
   );

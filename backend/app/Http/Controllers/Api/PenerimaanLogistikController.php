@@ -12,7 +12,6 @@ class PenerimaanLogistikController extends Controller
     {
         $user = $request->user();
 
-        // Query awal
         $headers = DB::table('penerimaan_logistik AS pl')
             ->join('master_lab AS ml', 'ml.kode_ruangan', '=', 'pl.kode_ruangan')
             ->select(
@@ -25,7 +24,6 @@ class PenerimaanLogistikController extends Controller
             )
             ->orderBy('pl.created_at', 'desc');
 
-        // FILTER ADMIN LAB
         if ($user->role === 'admin_lab') {
             $headers->whereIn('pl.kode_ruangan', function($q) use ($user) {
                 $q->select('kode_ruangan')
@@ -34,10 +32,8 @@ class PenerimaanLogistikController extends Controller
             });
         }
 
-        // Ambil header
         $headers = $headers->get();
 
-        // Tambah detail untuk tiap header
         $result = $headers->map(function ($h) {
             $detail = DB::table('penerimaan_logistik_detail AS d')
                 ->join('master_barang AS mb', 'mb.kode_barang', '=', 'd.kode_barang')
@@ -67,6 +63,7 @@ class PenerimaanLogistikController extends Controller
         ]);
     }
 
+    // Simpan data penerimaan logistik baru
     public function store(Request $request)
     {
         $request->validate([
@@ -115,6 +112,7 @@ class PenerimaanLogistikController extends Controller
         }
     }
 
+   // Tampilkan detail penerimaan logistik berdasarkan ID
     public function show($id)
     {
         $header = DB::table('penerimaan_logistik')->where('id_penerimaan', $id)->first();
@@ -145,6 +143,7 @@ class PenerimaanLogistikController extends Controller
         ]);
     }
 
+    // Update data penerimaan logistik
     public function update(Request $request, $id)
     {
         $request->validate([
@@ -159,7 +158,6 @@ class PenerimaanLogistikController extends Controller
 
         try {
 
-            // Pastikan header ada
             $header = DB::table('penerimaan_logistik')->where('id_penerimaan', $id)->first();
             if (!$header) {
                 return response()->json([
@@ -168,7 +166,6 @@ class PenerimaanLogistikController extends Controller
                 ], 404);
             }
 
-            // UPDATE HEADER
             DB::table('penerimaan_logistik')
                 ->where('id_penerimaan', $id)
                 ->update([
@@ -177,10 +174,8 @@ class PenerimaanLogistikController extends Controller
                     'updated_at' => now(),
                 ]);
 
-            // HAPUS DETAIL LAMA
             DB::table('penerimaan_logistik_detail')->where('id_penerimaan', $id)->delete();
 
-            // INSERT DETAIL BARU
             foreach ($request->detail as $item) {
                 DB::table('penerimaan_logistik_detail')->insert([
                     'id_penerimaan' => $id,
@@ -207,7 +202,7 @@ class PenerimaanLogistikController extends Controller
         }
     }
 
-
+    // Hapus data penerimaan logistik
     public function destroy($id)
     {
         DB::beginTransaction();

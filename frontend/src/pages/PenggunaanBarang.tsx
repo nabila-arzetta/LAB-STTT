@@ -90,6 +90,10 @@ export default function PenggunaanBarang() {
 
   const [search, setSearch] = useState("");
 
+  const [filterTanggalAwal, setFilterTanggalAwal] = useState("");
+  const [filterTanggalAkhir, setFilterTanggalAkhir] = useState("");
+  const [filterKodeBarang, setFilterKodeBarang] = useState("");
+
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Penggunaan | null>(null);
 
@@ -127,9 +131,7 @@ export default function PenggunaanBarang() {
     [labList, selectedKodeRuangan]
   );
 
-  // =========================================================
   // LOAD DATA
-  // =========================================================
   const loadData = useCallback(async () => {
     console.log("MULAI FETCH /penggunaan-barang");
     setLoading(true);
@@ -144,7 +146,7 @@ export default function PenggunaanBarang() {
 
       setLabList(aktifs);
 
-      // Temukan lab yang dimiliki admin (pakai tipe nyata, bukan any)
+      // Temukan lab yang dimiliki admin 
       const userLab = aktifs.find(
         (l) => String(l.kode_bagian).toLowerCase() === String(userKodeBagian).toLowerCase()
       );
@@ -201,15 +203,12 @@ export default function PenggunaanBarang() {
     loadData();
   }, [loadData]);
 
-  // =========================================================
   // FORM HANDLER
-  // =========================================================
   const addBarang = (kode: string) => {
     if (!kode) return;
 
     setForm((p) => ({
       ...p,
-      // selalu hanya 1 item
       detail: [
         {
           kode_barang: kode,
@@ -349,9 +348,7 @@ export default function PenggunaanBarang() {
     }
   };
 
-  // =========================================================
   // DATA TABLE
-  // =========================================================
   const detailRows = isAdminLab
     ? penggunaan.flatMap((p) =>
         p.detail.map((d) => ({
@@ -377,8 +374,7 @@ export default function PenggunaanBarang() {
         )
       : [];
 
-  // 🔹 Flatten ke level detail agar kolom jadi:
-  // Tanggal | Kode Barang | Nama Barang | Qty | Satuan | Keterangan
+  // Flatten ke level detail agar kolom jadi: Tanggal | Kode Barang | Nama Barang | Qty | Satuan | Keterangan
   const superadminDetailRows = superadminFilteredPenggunaan.flatMap((p) =>
     p.detail.map((d) => ({
       tanggal: p.tanggal,
@@ -390,21 +386,31 @@ export default function PenggunaanBarang() {
     }))
   );
 
-  // 🔹 Filter pencarian untuk superadmin berdasarkan kolom yang diminta
   const superadminSearchedDetailRows = superadminDetailRows.filter((row) => {
-    if (!search) return true;
     const q = search.toLowerCase();
-    return (
+
+    // FILTER SEARCH (nama_barang, kode_barang, tanggal, keterangan)
+    const matchSearch =
+      !search ||
       row.tanggal.toLowerCase().includes(q) ||
       row.kode_barang.toLowerCase().includes(q) ||
       row.nama_barang.toLowerCase().includes(q) ||
-      row.keterangan.toLowerCase().includes(q)
-    );
+      row.keterangan.toLowerCase().includes(q);
+
+    // FILTER TANGGAL
+    const rowDate = new Date(row.tanggal);
+    const awalOk =
+      !filterTanggalAwal || rowDate >= new Date(filterTanggalAwal);
+    const akhirOk =
+      !filterTanggalAkhir || rowDate <= new Date(filterTanggalAkhir);
+
+      const kodeOk =
+      !filterKodeBarang ||
+      row.kode_barang.toLowerCase().includes(filterKodeBarang.toLowerCase());
+
+    return matchSearch && awalOk && akhirOk && kodeOk;
   });
 
-  // =========================================================
-  // RENDER
-  // =========================================================
   if (loading)
     return (
       <p className="text-center p-6 text-muted-foreground">
@@ -418,13 +424,6 @@ export default function PenggunaanBarang() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-primary">Penggunaan Barang</h1>
-          {isSuperAdmin && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedLab
-                ? `Lab dipilih: ${selectedLab.nama_lab} (${selectedLab.kode_ruangan})`
-                : "Pilih lab terlebih dahulu untuk melihat penggunaan barang."}
-            </p>
-          )}
         </div>
 
         {isAdminLab && (
@@ -442,7 +441,7 @@ export default function PenggunaanBarang() {
             </DialogTrigger>
 
             {/* FORM */}
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-2xl" aria-describedby={undefined}>
               <DialogHeader>
                 <DialogTitle>
                   {editingTarget
@@ -453,14 +452,23 @@ export default function PenggunaanBarang() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  {/* LAB */}
                   <div>
-                    <Label>Laboratorium</Label>
-                    <Input value={form.kode_ruangan} disabled />
+                    <Label htmlFor="formLab">Laboratorium</Label>
+                    <Input
+                      id="formLab"
+                      name="formLab"
+                      value={form.kode_ruangan}
+                      disabled
+                    />
                   </div>
 
+                  {/* TANGGAL */}
                   <div>
-                    <Label>Tanggal</Label>
+                    <Label htmlFor="formTanggal">Tanggal</Label>
                     <Input
+                      id="formTanggal"
+                      name="formTanggal"
                       type="date"
                       value={form.tanggal}
                       onChange={(e) =>
@@ -472,9 +480,9 @@ export default function PenggunaanBarang() {
 
                 {/* BARANG */}
                 <div>
-                  <Label>Tambah Barang</Label>
+                  <Label htmlFor="formBarangSelect">Tambah Barang</Label>
                   <Select onValueChange={addBarang}>
-                    <SelectTrigger>
+                    <SelectTrigger id="formBarangSelect" name="formBarangSelect">
                       <SelectValue placeholder="Pilih barang..." />
                     </SelectTrigger>
 
@@ -488,18 +496,14 @@ export default function PenggunaanBarang() {
                   </Select>
                 </div>
 
+                {/* LIST BARANG */}
                 {form.detail.length > 0 && (
                   <div className="space-y-2 border rounded-md p-3">
-                    {form.detail.map((d) => {
-                      const barang = barangList.find(
-                        (b) => b.kode_barang === d.kode_barang
-                      );
+                    {form.detail.map((d, idx) => {
+                      const barang = barangList.find((b) => b.kode_barang === d.kode_barang);
 
                       return (
-                        <div
-                          key={d.kode_barang}
-                          className="flex justify-between items-center border-b py-2"
-                        >
+                        <div key={idx} className="flex justify-between items-center border-b py-2">
                           <div>
                             <p className="font-medium">
                               {barang?.nama_barang || d.kode_barang}
@@ -510,21 +514,27 @@ export default function PenggunaanBarang() {
                           </div>
 
                           <div className="flex items-center gap-2">
+                            <Label htmlFor={`qty-${idx}`} className="sr-only">
+                              Quantity
+                            </Label>
+
                             <Input
+                              id={`qty-${idx}`}
+                              name={`qty-${idx}`}
                               type="number"
                               min={1}
                               value={d.quantity}
-                              onChange={(e) =>
-                                updateQty(
-                                  d.kode_barang,
-                                  parseInt(e.target.value)
-                                )
-                              }
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                updateQty(d.kode_barang, isNaN(val) ? 1 : val);
+                              }}
                               className="w-20"
                             />
+                            
                             <Button
                               variant="ghost"
                               size="sm"
+                              type="button"
                               onClick={() => removeBarang(d.kode_barang)}
                             >
                               Hapus
@@ -535,9 +545,13 @@ export default function PenggunaanBarang() {
                     })}
                   </div>
                 )}
+
+                {/* KETERANGAN */}
                 <div>
-                  <Label>Keterangan</Label>
+                  <Label htmlFor="formKeterangan">Keterangan</Label>
                   <Textarea
+                    id="formKeterangan"
+                    name="formKeterangan"
                     value={form.keterangan}
                     onChange={(e) =>
                       setForm((p) => ({ ...p, keterangan: e.target.value }))
@@ -545,6 +559,7 @@ export default function PenggunaanBarang() {
                   />
                 </div>
 
+                {/* ACTION BUTTONS */}
                 <div className="flex justify-end gap-2">
                   <Button
                     variant="outline"
@@ -556,6 +571,7 @@ export default function PenggunaanBarang() {
                   >
                     Batal
                   </Button>
+
                   <Button type="submit">
                     {editingTarget ? "Simpan Perubahan" : "Ajukan"}
                   </Button>
@@ -566,7 +582,7 @@ export default function PenggunaanBarang() {
         )}
       </div>
 
-      {/* TABLE ADMIN LAB (TIDAK DIUBAH) */}
+      {/* TABLE ADMIN LAB */}
       {isAdminLab ? (
         <div className="overflow-x-auto border rounded-md">
           <table className="min-w-full text-sm">
@@ -620,6 +636,7 @@ export default function PenggunaanBarang() {
           </table>
         </div>
       ) : (
+
         // TABLE SUPERADMIN
         <>
           {/* Kalau superadmin belum pilih lab → tampilkan daftar lab */}
@@ -668,27 +685,55 @@ export default function PenggunaanBarang() {
                 </Button>
 
                 <div>
-                  <h1 className="text-3xl font-bold text-primary">
+                  <h1 className="text-lg font-bold text-primary">
                     {selectedLab.nama_lab}
                   </h1>
-
                   <p className="text-muted-foreground mt-1">
-                    {selectedLab.kode_ruangan} – {selectedLab.kode_bagian}
+                    {selectedLab.kode_ruangan} - {selectedLab.kode_bagian}
                   </p>
                 </div>
               </div>
 
-              {/* SEARCH */}
-              {(isAdminLab || selectedLab) && (
-                <div className="w-full mt-4 px-2">
+
+              {/* FILTER BAR */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-2">
+
+                {/* SEARCH */}
+                <div>
+                  <Label htmlFor="filterSearch">Pencarian</Label>
                   <Input
-                    placeholder="Cari Penggunaan..."
+                    id="filterSearch"
+                    name="filterSearch"
+                    placeholder="Cari kode barang/nama barang"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full max-w-none"
                   />
                 </div>
-              )}
+
+                {/* TANGGAL AWAL */}
+                <div>
+                  <Label htmlFor="filterTanggalAwal">Tanggal Awal</Label>
+                  <Input
+                    id="filterTanggalAwal"
+                    name="filterTanggalAwal"
+                    type="date"
+                    value={filterTanggalAwal}
+                    onChange={(e) => setFilterTanggalAwal(e.target.value)}
+                  />
+                </div>
+
+                {/* TANGGAL AKHIR */}
+                <div>
+                  <Label htmlFor="filterTanggalAkhir">Tanggal Akhir</Label>
+                  <Input
+                    id="filterTanggalAkhir"
+                    name="filterTanggalAkhir"
+                    type="date"
+                    value={filterTanggalAkhir}
+                    onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+                  />
+                </div>
+              </div>
 
               {/* TABLE */}
               <div className="overflow-x-auto border rounded-md">
@@ -736,12 +781,12 @@ export default function PenggunaanBarang() {
         </>
       )}
 
-      {/* DETAIL MODAL (tidak dipakai superadmin lagi, tapi dibiarkan) */}
+      {/* DETAIL MODAL */}
       <Dialog
         open={!!selected}
         onOpenChange={(open) => !open && setSelected(null)}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Detail Penggunaan</DialogTitle>
           </DialogHeader>
@@ -790,8 +835,14 @@ export default function PenggunaanBarang() {
       </Dialog>
 
       {/* DELETE CONFIRM MODAL */}
-      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent className="max-w-sm">
+      <Dialog
+        open={deleteDialog}
+        onOpenChange={(v) => {
+          if (!v) setSelected(null); 
+          setDeleteDialog(v);
+        }}
+      >
+        <DialogContent className="max-w-sm" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Hapus Penggunaan?</DialogTitle>
           </DialogHeader>
@@ -801,7 +852,11 @@ export default function PenggunaanBarang() {
           </p>
 
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setDeleteDialog(false)}>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setDeleteDialog(false)}
+            >
               Batal
             </Button>
 
@@ -809,8 +864,9 @@ export default function PenggunaanBarang() {
               variant="destructive"
               type="button"
               onClick={handleDelete}
+              className="flex items-center gap-2"
             >
-              Hapus
+              <Trash2 className="w-4 h-4" /> Hapus
             </Button>
           </div>
         </DialogContent>

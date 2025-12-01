@@ -6,10 +6,8 @@ const Index = () => {
 
   return (
     <div className="relative flex flex-col min-h-screen overflow-hidden">
-      {/* Background Gradient Layer - Paling Belakang */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#092044] via-[#1a4d7a] to-[#A7BDD2]"></div>
       
-      {/* Building Image Layer - Mobile (di tengah, menempel footer) */}
       <div 
         className="absolute left-1/2 -translate-x-1/3 w-full pointer-events-none md:hidden" 
         style={{ 
@@ -32,7 +30,6 @@ const Index = () => {
         />
       </div>
 
-      {/* Building Image untuk Tablet */}
       <div 
         className="absolute bottom-0 right-0 hidden md:block lg:hidden pointer-events-none" 
         style={{ 
@@ -54,7 +51,6 @@ const Index = () => {
         />
       </div>
 
-      {/* Building Image untuk Desktop */}
       <div 
         className="absolute bottom-0 right-0 hidden lg:block pointer-events-none" 
         style={{ 
@@ -98,7 +94,6 @@ const Index = () => {
             </h1>
           </div>
           
-          {/* Desktop Login Button */}
           <a
             href="/login"
             className="hidden sm:block bg-[#E5E5E5] text-[#092044] px-4 md:px-5 lg:px-7 py-2 lg:py-2.5 rounded-lg font-semibold text-xs md:text-sm lg:text-base hover:bg-neutral-300 transition-all duration-300 hover:shadow-lg active:scale-95"
@@ -106,7 +101,6 @@ const Index = () => {
             Masuk
           </a>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="p-2 text-white transition-colors rounded-lg sm:hidden hover:bg-white/10 active:bg-white/20"
@@ -116,7 +110,6 @@ const Index = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="sm:hidden absolute top-full left-0 right-0 bg-[#092044] border-t border-white/10 shadow-lg">
             <a
@@ -130,7 +123,7 @@ const Index = () => {
         )}
       </nav>
 
-      {/* Hero Section - Content Layer Paling Depan */}
+      {/* Hero Section */}
       <main className="relative z-30 flex items-center justify-center lg:justify-start lg:items-center flex-1 py-8 sm:py-12 md:py-16">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-8 lg:px-16 w-full">
           <div className="max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-[580px] mx-auto lg:mx-0 text-center lg:text-left">

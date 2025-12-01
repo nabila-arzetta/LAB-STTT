@@ -23,7 +23,6 @@ class TransferBarangDetail extends Model
 
     public function barang()
     {
-        // pastikan nama model barang kamu benar, misal: MasterBarang atau Barang
         return $this->belongsTo(MasterBarang::class, 'kode_barang', 'kode_barang');
     }
 }

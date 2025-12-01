@@ -6,7 +6,7 @@ export type MasterBarang = {
   satuan?: string|null;
   stok_minimum: number;
   lokasi_penyimpanan?: string|null;
-  status?: string; // 'aktif'|'nonaktif'
+  status?: string; 
   deskripsi?: string|null;
 };
 

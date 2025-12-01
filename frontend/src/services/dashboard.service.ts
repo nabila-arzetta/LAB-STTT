@@ -9,11 +9,6 @@ export type RecentTx = {
   status: string;
 };
 
-export type LowStockItem = {
-  barang_id: number;
-  nama_barang: string;
-  stok: number;
-};
 
 export type DashboardSummary = {
   stats: {
@@ -22,7 +17,6 @@ export type DashboardSummary = {
     barangKeluar: number;
     antrianBarang: number;
   };
-  lowStock: LowStockItem[];
   recent: RecentTx[];
 };
 

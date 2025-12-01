@@ -43,6 +43,7 @@ const MasterUsers: React.FC = () => {
   const [selectedLabName, setSelectedLabName] = useState<string | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -101,16 +102,17 @@ const MasterUsers: React.FC = () => {
   }, [toast]);
 
   useEffect(() => {
-    fetchUsers();
-    fetchLabs();
-  }, [fetchUsers, fetchLabs]);
+    const init = async () => {
+      try {
+        setInitialLoading(true);
+        await Promise.all([fetchUsers(), fetchLabs()]);
+      } finally {
+        setInitialLoading(false);
+      }
+    };
 
-  // const filteredUsers = useMemo(() => {
-  //   const q = searchTerm.toLowerCase();
-  //   return users.filter(
-  //     (u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
-  //   );
-  // }, [users, searchTerm]);
+    init();
+  }, [fetchUsers, fetchLabs]);
 
   const groupedUsers = useMemo(() => {
     const map = new Map<string, any>();
@@ -130,7 +132,7 @@ const MasterUsers: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true); // mulai loading
+    setLoading(true); 
     try {
       if (editingUser) {
         const { data } = await api.put(`/users/${editingUser.id}`, formData);
@@ -140,7 +142,7 @@ const MasterUsers: React.FC = () => {
         toast({ title: 'Berhasil', description: 'User diperbarui.' });
       } else {
         const { data } = await api.post('/users', formData);
-        // 🧠 Cek apakah user dengan ID ini sudah ada — kalau iya, replace
+        // Cek apakah user dengan ID ini sudah ada
         setUsers((prev) => {
           const exists = prev.some((u) => u.id === data.data.id);
           return exists
@@ -173,28 +175,12 @@ const MasterUsers: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  // const handleDelete = async (id: number) => {
-  //   setLoading(true);
-  //   try {
-  //     setUsers((prev) => prev.filter((u) => u.id !== id));
-  //     toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
-  //   } catch (err: any) {
-  //     toast({
-  //       title: 'Gagal menghapus',
-  //       description: err?.response?.data?.message ?? err.message,
-  //       variant: 'destructive',
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
-
   const handleDelete = async (id: number) => {
     setLoading(true);
     try {
       // Panggil API backend untuk hapus user
       await api.delete(`/users/${id}`);
-      // Update state setelah berhasil hapus di server
+      
       setUsers((prev) => prev.filter((u) => u.id !== id));
       toast({ title: 'User dihapus', description: 'Data user berhasil dihapus.' });
     } catch (err: any) {
@@ -241,40 +227,18 @@ const MasterUsers: React.FC = () => {
       await api.delete(`/users/${userLab.id}`);
       toast({ title: 'Berhasil', description: `Lab "${labName}" dihapus dari user.` });
     } else {
-      // Hanya satu lab, hapus user-nya
+      
       await api.delete(`/users/${userLab.id}`);
       toast({ title: 'Berhasil', description: `User "${groupedUser.name}" dihapus.` });
     }
     fetchUsers();
   };
 
-
   const resetForm = () => {
     setFormData({ name: '', email: '', password: '', role: 'admin_lab', kode_bagian: '' });
     setEditingUser(null);
     setIsDialogOpen(false);
   };
-
-  // const columns = [
-  //   {
-  //     key: 'no',
-  //     header: 'No',
-  //     className: 'w-16 text-center',
-  //     render: (u: User) => <>{users.indexOf(u) + 1}</>,
-  //   },
-  //   { key: 'name', header: 'Nama' },
-  //   { key: 'email', header: 'Email' },
-  //   {
-  //     key: 'role',
-  //     header: 'Role',
-  //     render: (u: User) => <Badge>{u.role}</Badge>,
-  //   },
-  //   {
-  //     key: 'lab',
-  //     header: 'Laboratorium',
-  //     render: (u: any) => u.lab_name ?? '-',
-  //   },
-  // ];
 
   const columns = [
     {
@@ -348,6 +312,16 @@ const MasterUsers: React.FC = () => {
     </div>
   );
 
+  if (initialLoading) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -369,28 +343,43 @@ const MasterUsers: React.FC = () => {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Nama */}
             <div>
-              <Label>Nama Lengkap</Label>
+              <Label htmlFor="name">Nama Lengkap</Label>
               <Input
+                id="name"
+                name="name"
+                autoComplete="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
             </div>
+
+            {/* Email */}
             <div>
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
+                name="email"
+                autoComplete="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 required
               />
             </div>
+
+            {/* Password (hanya saat create) */}
             {!editingUser && (
               <div className="relative">
-                <Label>Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <Input
+                    id="password"
+                    name="password"
+                    autoComplete="new-password"
                     type={showPassword ? "text" : "password"}
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -404,19 +393,20 @@ const MasterUsers: React.FC = () => {
                     className="absolute inset-y-0 right-2 flex items-center text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
                   >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
               </div>
             )}
+
+            {/* Role */}
             <div>
-              <Label>Role</Label>
-              <Select value={formData.role} onValueChange={(v) => setFormData({ ...formData, role: v })}>
-                <SelectTrigger>
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={formData.role}
+                onValueChange={(v) => setFormData({ ...formData, role: v })}
+              >
+                <SelectTrigger id="role">
                   <SelectValue placeholder="Pilih role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -426,19 +416,24 @@ const MasterUsers: React.FC = () => {
               </Select>
             </div>
 
-            {formData.role === 'admin_lab' && (
+            {/* Lab */}
+            {formData.role === "admin_lab" && (
               <div>
-                <Label>Laboratorium</Label>
+                <Label htmlFor="kode_bagian">Laboratorium</Label>
                 <Select
                   value={formData.kode_bagian}
                   onValueChange={(v) => setFormData({ ...formData, kode_bagian: v })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="kode_bagian">
                     <SelectValue placeholder="Pilih laboratorium" />
                   </SelectTrigger>
                   <SelectContent>
                     {Array.from(
-                      new Map(labs.filter(lab => lab.kode_bagian).map(lab => [lab.kode_bagian, lab])).values()
+                      new Map(
+                        labs
+                          .filter(lab => lab.kode_bagian)
+                          .map(lab => [lab.kode_bagian, lab])
+                      ).values()
                     ).map((lab) => (
                       <SelectItem key={lab.id_lab} value={lab.kode_bagian}>
                         {lab.nama_lab}
@@ -452,7 +447,7 @@ const MasterUsers: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={resetForm}>Batal</Button>
               <Button type="submit" disabled={loading}>
-                {loading ? 'Menyimpan...' : editingUser ? 'Perbarui' : 'Tambah'}
+                {loading ? "Menyimpan..." : editingUser ? "Perbarui" : "Tambah"}
               </Button>
             </div>
           </form>

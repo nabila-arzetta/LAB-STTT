@@ -40,9 +40,6 @@ class LabController extends Controller
             return $lab;
         });
 
-        // Urutkan:
-        // - Jika superadmin → urut alfabet
-        // - Jika admin_lab → lab sendiri paling atas, sisanya alfabet
         if ($isSuperAdmin) {
             $labs = $labs->sortBy('nama_lab')->values();
         } else {

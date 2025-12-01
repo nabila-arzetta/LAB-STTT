@@ -56,31 +56,26 @@ export const AppSidebar: React.FC = () => {
   const menuItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
 
+    // SUPERADMIN ONLY
     ...(isSuperAdmin
       ? [{ title: "Data User", url: "/master/users", icon: Users }]
       : []),
 
     { title: "Data Lab", url: "/master/lab", icon: Building2 },
     { title: "Master Barang", url: "/master/barang", icon: Boxes },
-    { title: "Inventaris Barang", url: "/inventaris", icon: Database },
-
-    { title: "Penggunaan Barang", url: "/penggunaan", icon: ClipboardList },
-
     { title: "Penerimaan Logistik", url: "/penerimaan-logistik", icon: PackagePlus },
-
+    { title: "Penggunaan Barang", url: "/penggunaan", icon: ClipboardList },
     { title: "Transfer Barang", url: "/transfer", icon: ArrowLeftRight },
+    { title: "Inventaris Barang", url: "/inventaris", icon: Database },
     { title: "Stok Opname", url: "/stok-opname", icon: Layers },
   ];
 
-
-  /** Tutup sidebar saat pindah halaman (hp only) */
   useEffect(() => {
     if (isMobile && isOpen) toggleSidebar();
   }, [location.pathname]);
 
   return (
     <>
-      {/* === BACKDROP OVERLAY (MOBILE) === */}
       {isMobile && isOpen && (
         <div
           onClick={toggleSidebar}
@@ -88,7 +83,6 @@ export const AppSidebar: React.FC = () => {
         />
       )}
 
-      {/* === TOGGLE BUTTON MOBILE (Menu / X) === */}
       {isMobile && (
         <button
           onClick={toggleSidebar}
@@ -103,7 +97,6 @@ export const AppSidebar: React.FC = () => {
         </button>
       )}
 
-      {/* === SIDEBAR WRAPPER === */}
       <Sidebar
         collapsible="icon"
         className={`
@@ -117,7 +110,6 @@ export const AppSidebar: React.FC = () => {
       >
         <SidebarContent className="py-4">
           <SidebarGroup>
-            {/* === HEADER DENGAN TOGGLE BUTTON === */}
             <div className={`flex items-center px-4 mb-6 ${realCollapsed ? "justify-center" : "justify-between"}`}>
               {!realCollapsed && (
                 <SidebarGroupLabel className="font-semibold text-xs uppercase tracking-wider text-gray-400">
@@ -125,7 +117,6 @@ export const AppSidebar: React.FC = () => {
                 </SidebarGroupLabel>
               )}
               
-              {/* TOGGLE BUTTON DESKTOP */}
               {!isMobile && (
                 <button
                   onClick={toggleSidebar}
@@ -151,7 +142,6 @@ export const AppSidebar: React.FC = () => {
                         <NavLink
                           to={item.url}
                           onClick={(e) => {
-                            // Cegah sidebar melebar saat collapsed
                             if (realCollapsed && !isMobile) {
                               e.stopPropagation();
                             }
@@ -174,22 +164,20 @@ export const AppSidebar: React.FC = () => {
                             <span className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-0.5 rounded-r bg-white"></span>
                           )}
 
-                          {/* Icon */}
                           <item.icon
                             className="w-[18px] h-[18px] transition-all duration-150 flex-shrink-0"
                           />
-                          {/* Label */}
+                          
                           {!realCollapsed && (
                             <span className="text-sm font-medium transition-all duration-150">
                               {item.title}
                             </span>
                           )}
 
-                          {/* Tooltip untuk collapsed state */}
                           {realCollapsed && !isMobile && (
                             <div className="absolute left-full ml-2 px-2.5 py-1.5 bg-gray-900/95 backdrop-blur-sm text-white text-xs rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 whitespace-nowrap shadow-lg pointer-events-none z-50 border border-white/10">
                               {item.title}
-                              {/* Tooltip arrow */}
+                              
                               <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900/95"></div>
                             </div>
                           )}

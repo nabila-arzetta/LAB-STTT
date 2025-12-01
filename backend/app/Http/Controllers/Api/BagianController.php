@@ -21,8 +21,7 @@ class BagianController extends Controller
                 'ml.nama_lab',
                 'ml.status',
                 DB::raw('COUNT(mb.id) as jumlah_barang'),
-                // 🟢 Tambahkan kolom can_manage untuk frontend
-                DB::raw("CASE 
+                DB::raw("CASE   
                     WHEN '{$user->role}' = 'superadmin' THEN true
                     WHEN ml.kode_bagian = '{$user->kode_bagian}' THEN true
                     ELSE false
@@ -38,7 +37,6 @@ class BagianController extends Controller
             )
             ->orderBy('ml.nama_lab', 'asc');
 
-        // 🔸 Kalau onlyManage dan bukan superadmin → filter hanya lab miliknya
         if ($onlyManage && $user->role !== 'superadmin') {
             $query->where('ml.kode_bagian', $user->kode_bagian);
         }

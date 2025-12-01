@@ -115,11 +115,6 @@ class BarangController extends Controller
         return response()->json(['message' => 'Barang berhasil dihapus']);
     }
 
-
-    // ================================================
-    // 📌 HISTORY MOVEMENT BARANG (baru ditambahkan)
-    // GET /api/barang/{kode_barang}/history?lab=LAB001
-    // ================================================
     public function history(Request $request, $kode_barang)
     {
         $kode_barang = strtoupper($kode_barang);

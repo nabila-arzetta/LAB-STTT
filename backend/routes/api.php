@@ -92,6 +92,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/transfer-barang', [TransferBarangController::class, 'store']);
         Route::post('/transfer-barang/{id}/approve', [TransferBarangController::class, 'approve']);
         Route::post('/transfer-barang/{id}/reject', [TransferBarangController::class, 'reject']);
+        Route::put('/transfer-barang/{id}', [TransferBarangController::class, 'update']);
+        Route::delete('/transfer-barang/{id}', [TransferBarangController::class, 'destroy']);
     });
 
     // -------------------- PENERIMAAN LOGISTIK --------------------
@@ -115,16 +117,5 @@ Route::middleware(['auth:sanctum'])->group(function () {
     });
 
     Route::get('/master-barang/by-lab/{kode_ruangan}', [MasterBarangController::class, 'byLab']);
-
-
-    {/* 
-    // -------------------- PEMINJAMAN --------------------
-    Route::apiResource('peminjaman', PeminjamanController::class);
-    Route::post('/peminjaman/{peminjaman}/kembalikan', [PeminjamanController::class, 'kembalikan']);
-
-    // -------------------- BARANG KHUSUS --------------------
-    Route::get('/barang/{id}/history', [BarangController::class, 'history']);
-    Route::get('/barang/kondisi/{kondisi}', [BarangController::class, 'byKondisi']);
-    */}
     
 });

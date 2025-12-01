@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany; // <-- Tambahkan ini
-use Illuminate\Database\Eloquent\Relations\BelongsTo; // <-- Tambahkan ini
-use Illuminate\Database\Eloquent\Factories\HasFactory; // (Opsional, tapi best practice)
+use Illuminate\Database\Eloquent\Relations\HasMany; 
+use Illuminate\Database\Eloquent\Relations\BelongsTo; 
+use Illuminate\Database\Eloquent\Factories\HasFactory; 
 
 class Peminjaman extends Model
 {
-    use HasFactory; // (Opsional)
+    use HasFactory; 
 
     protected $table = 'peminjaman';
 
@@ -24,7 +24,7 @@ class Peminjaman extends Model
 
     public function exemplars(): HasMany
     {
-        // Relasi ini membaca 'peminjaman_id' di tabel 'barang_exemplars'
+        // Membaca 'peminjaman_id' di tabel 'barang_exemplars'
         return $this->hasMany(BarangExemplar::class);
     }
 

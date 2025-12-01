@@ -3,8 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 
-// Route default: cek koneksi database.
-// Biarkan hanya rute ini di web.php.
 Route::get('/', function () {
     try {
         DB::connection()->getPdo();

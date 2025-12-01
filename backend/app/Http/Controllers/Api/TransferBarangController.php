@@ -8,30 +8,19 @@ use Illuminate\Support\Facades\DB;
 
 class TransferBarangController extends Controller
 {
-    /**
-     * GET /api/transfer-barang
-     * superadmin: semua
-     * admin_lab : hanya transfer yang terkait lab-nya (dari/ke)
-     */
     public function index(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        if (!$user) return response()->json(['message' => 'Unauthenticated'], 401);
 
-        // cari lab yang dimiliki user (berdasarkan kode_bagian)
+        // Lab user
         $labUser = DB::table('master_lab')
             ->where('kode_bagian', $user->kode_bagian)
             ->first();
 
         if (!$labUser) {
-            $prefix = strtoupper(explode('_', $user->username)[0]); // kmp_admin -> KMP
-            $kodeRuanganGuess = 'L-' . $prefix;
-
-            $labUser = DB::table('master_lab')
-                ->where('kode_ruangan', $kodeRuanganGuess)
-                ->first();
+            $prefix = strtoupper(explode('_', $user->username)[0]);
+            $labUser = DB::table('master_lab')->where('kode_ruangan', 'L-'.$prefix)->first();
         }
 
         $query = DB::table('transfer_barang as t')
@@ -50,21 +39,20 @@ class TransferBarangController extends Controller
             )
             ->orderByDesc('t.id_transfer');
 
-        // admin_lab hanya lihat yang berhubungan dengan lab-nya
+        // admin_lab hanya melihat transfer terkait lab-nya
         if ($user->role === 'admin_lab' && $labUser) {
-            $kodeRuangan = strtoupper($labUser->kode_ruangan);
-
-            $query->where(function ($q) use ($kodeRuangan) {
-                $q->where('t.kode_ruangan_dari', $kodeRuangan)
-                  ->orWhere('t.kode_ruangan_tujuan', $kodeRuangan);
+            $kode = strtoupper($labUser->kode_ruangan);
+            $query->where(function ($q) use ($kode) {
+                $q->where('t.kode_ruangan_dari', $kode)
+                  ->orWhere('t.kode_ruangan_tujuan', $kode);
             });
         }
 
         $transfers = $query->get();
 
-        // ambil detail + info barang
-        if ($transfers->count() > 0) {
-            $ids = $transfers->pluck('id_transfer')->toArray();
+        // Detail
+        if ($transfers->count()) {
+            $ids = $transfers->pluck('id_transfer');
 
             $details = DB::table('transfer_barang_detail as d')
                 ->leftJoin('master_barang as b', 'b.kode_barang', '=', 'd.kode_barang')
@@ -80,78 +68,48 @@ class TransferBarangController extends Controller
                 ->get()
                 ->groupBy('id_transfer');
 
-            $transfers = $transfers->map(function ($t) use ($details) {
-                $rows = $details->get($t->id_transfer, collect());
-
-                $t->detail = $rows->map(function ($row) {
+            $transfers->transform(function ($t) use ($details) {
+                $t->detail = $details->get($t->id_transfer, collect())->map(function ($d) {
                     return [
-                        'kode_barang'  => $row->kode_barang,
-                        'nama_barang'  => $row->nama_barang,
-                        'satuan'       => $row->satuan,
-                        'quantity'     => $row->quantity,     // diminta
-                        'qty_approved' => $row->qty_approved, // disetujui
+                        'kode_barang' => $d->kode_barang,
+                        'nama_barang' => $d->nama_barang,
+                        'satuan'      => $d->satuan,
+                        'quantity'    => $d->quantity,
+                        'qty_approved'=> $d->qty_approved,
                     ];
                 })->values();
-
-                return $t;
-            });
-        } else {
-            $transfers = $transfers->map(function ($t) {
-                $t->detail = [];
                 return $t;
             });
         }
 
-        return response()->json([
-            'success' => true,
-            'data'    => $transfers,
-        ]);
+        return response()->json(['success'=>true,'data'=>$transfers]);
     }
 
-    /**
-     * POST /api/transfer-barang
-     * Hanya admin_lab: membuat permintaan transfer (dari lab sendiri)
-     */
+    // Store new transfer
     public function store(Request $request)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        if (!$user) return response()->json(['message'=>'Unauthenticated'],401);
+        if ($user->role !== 'admin_lab') return response()->json(['message'=>'Forbidden'],403);
 
-        if ($user->role !== 'admin_lab') {
-            return response()->json(['message' => 'Hanya admin lab dapat membuat transfer'], 403);
-        }
-
+        // Validasi
         $validated = $request->validate([
-            // kode_ruangan_dari boleh tetap divalidasi, tapi kita tidak pakai nilainya
-            'kode_ruangan_dari'    => 'required|string',
-            'kode_ruangan_tujuan'  => 'required|string|different:kode_ruangan_dari',
-            'tanggal'              => 'required|date',
-            'keterangan'           => 'nullable|string',
-            'detail'               => 'required|array|min:1',
-            'detail.*.kode_barang' => 'required|string',
-            'detail.*.quantity'    => 'required|integer|min:1',
+            'kode_ruangan_tujuan' => 'required|string',
+            'tanggal'             => 'required|date',
+            'keterangan'          => 'nullable|string',
+            'detail'              => 'required|array|min:1',
+            'detail.*.kode_barang'=> 'required|string',
+            'detail.*.quantity'   => 'required|integer|min:1',
         ]);
 
-        // cari lab milik user (berdasarkan kode_bagian)
-        $labUser = DB::table('master_lab')
-            ->where('kode_bagian', $user->kode_bagian)
-            ->first();
-
-        if (!$labUser) {
-            return response()->json([
-                'message' => 'User tidak memiliki lab yang terdaftar'
-            ], 403);
-        }
-
-        // PAKSA sumber transfer dari lab user sendiri
-        $kodeRuanganDari = strtoupper($labUser->kode_ruangan);
+        // Ambil lab user
+        $labUser = DB::table('master_lab')->where('kode_bagian',$user->kode_bagian)->first();
+        if (!$labUser) return response()->json(['message'=>'User tidak memiliki lab'],403);
 
         DB::beginTransaction();
         try {
-            $id_transfer = DB::table('transfer_barang')->insertGetId([
-                'kode_ruangan_dari'   => $kodeRuanganDari, // <-- pakai dari labUser
+            $id = DB::table('transfer_barang')->insertGetId([
+                'kode_ruangan_dari'   => $labUser->kode_ruangan,
                 'kode_ruangan_tujuan' => strtoupper($validated['kode_ruangan_tujuan']),
                 'tanggal'             => $validated['tanggal'],
                 'keterangan'          => $validated['keterangan'] ?? null,
@@ -162,7 +120,7 @@ class TransferBarangController extends Controller
 
             foreach ($validated['detail'] as $d) {
                 DB::table('transfer_barang_detail')->insert([
-                    'id_transfer'  => $id_transfer,
+                    'id_transfer'  => $id,
                     'kode_barang'  => $d['kode_barang'],
                     'quantity'     => $d['quantity'],
                     'qty_approved' => null,
@@ -172,60 +130,110 @@ class TransferBarangController extends Controller
             }
 
             DB::commit();
+            return response()->json(['success'=>true,'message'=>'Transfer berhasil dibuat']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transfer berhasil dibuat',
-            ], 201);
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal membuat transfer',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
         }
     }
 
-    /**
-     * POST /api/transfer-barang/{id}/approve
-     * Lab tujuan meng-ACC (boleh ACC sebagian)
-     */
+    // Update transfer
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'admin_lab')
+            return response()->json(['message'=>'Unauthorized'],403);
+
+        $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
+        if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
+
+        if ($transfer->status !== 'pending')
+            return response()->json(['message'=>'Transfer tidak dapat diedit'],422);
+
+        $validated = $request->validate([
+            'kode_ruangan_tujuan' => 'required|string',
+            'tanggal'             => 'required|date',
+            'keterangan'          => 'nullable|string',
+            'detail'              => 'required|array|min:1',
+            'detail.*.kode_barang'=> 'required|string',
+            'detail.*.quantity'   => 'required|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            DB::table('transfer_barang')->where('id_transfer',$id)->update([
+                'kode_ruangan_tujuan'=> strtoupper($validated['kode_ruangan_tujuan']),
+                'tanggal'            => $validated['tanggal'],
+                'keterangan'         => $validated['keterangan'] ?? null,
+                'updated_at'         => now(),
+            ]);
+
+            DB::table('transfer_barang_detail')->where('id_transfer',$id)->delete();
+
+            foreach ($validated['detail'] as $d) {
+                DB::table('transfer_barang_detail')->insert([
+                    'id_transfer'  => $id,
+                    'kode_barang'  => $d['kode_barang'],
+                    'quantity'     => $d['quantity'],
+                    'qty_approved' => null,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['success'=>true,'message'=>'Transfer diperbarui']);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
+        }
+    }
+
+    // Delete transfer
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+        if (!$user || $user->role !== 'admin_lab')
+            return response()->json(['message'=>'Unauthorized'],403);
+
+        $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
+        if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
+
+        if ($transfer->status !== 'pending')
+            return response()->json(['message'=>'Tidak bisa menghapus, transfer sudah diproses'],422);
+
+        DB::beginTransaction();
+        try {
+            DB::table('transfer_barang_detail')->where('id_transfer',$id)->delete();
+            DB::table('transfer_barang')->where('id_transfer',$id)->delete();
+
+            DB::commit();
+            return response()->json(['success'=>true,'message'=>'Transfer dihapus']);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
+        }
+    }
+
+    // Approve transfer
     public function approve(Request $request, $id)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        if (!$user || $user->role !== 'admin_lab')
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if ($user->role !== 'admin_lab') {
-            return response()->json(['message' => 'Hanya admin lab dapat meng-ACC transfer'], 403);
-        }
+        $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
+        if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
 
-        $transfer = DB::table('transfer_barang')
-            ->where('id_transfer', $id)
-            ->first();
+        $labUser = DB::table('master_lab')->where('kode_bagian',$user->kode_bagian)->first();
+        if (!$labUser || strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan))
+            return response()->json(['message'=>'Anda bukan lab tujuan'],403);
 
-        if (!$transfer) {
-            return response()->json(['message' => 'Transfer tidak ditemukan'], 404);
-        }
-
-        // cek bahwa user adalah lab tujuan
-        $labUser = DB::table('master_lab')
-            ->where('kode_bagian', $user->kode_bagian)
-            ->first();
-
-        if (
-            !$labUser ||
-            strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan)
-        ) {
-            return response()->json(['message' => 'Anda bukan lab tujuan transfer ini'], 403);
-        }
-
-        if ($transfer->status !== 'pending') {
-            return response()->json(['message' => 'Transfer tidak dalam status pending'], 422);
-        }
+        if ($transfer->status !== 'pending')
+            return response()->json(['message'=>'Transfer sudah diproses'],422);
 
         $validated = $request->validate([
             'detail'                 => 'required|array|min:1',
@@ -233,51 +241,59 @@ class TransferBarangController extends Controller
             'detail.*.qty_approved'  => 'required|integer|min:0',
         ]);
 
-        $detailRows = DB::table('transfer_barang_detail')
-            ->where('id_transfer', $id)
-            ->get()
-            ->keyBy('kode_barang');
-
         DB::beginTransaction();
-
         try {
             $allZero = true;
             $allFull = true;
 
             foreach ($validated['detail'] as $d) {
-
+                $qty = (int)$d['qty_approved'];
                 $kodeBarang = $d['kode_barang'];
-                $qtyApproved = (int) $d['qty_approved'];
 
-                if ($qtyApproved <= 0) continue;
+                // cek apakah full approve atau sebagian
+                $requestedQty = DB::table('transfer_barang_detail')
+                    ->where('id_transfer',$id)
+                    ->where('kode_barang',$kodeBarang)
+                    ->value('quantity');
 
-                // Kurangi stok di lab asal
-                DB::table('inventaris')
-                    ->where('kode_ruangan', $transfer->kode_ruangan_dari)
-                    ->where('kode_barang', $kodeBarang)
-                    ->decrement('stok_akhir', $qtyApproved);
+                if ($qty > 0) $allZero = false;
+                if ($qty < $requestedQty) $allFull = false;
 
-                // Tambah stok di lab tujuan
-                $exists = DB::table('inventaris')
-                    ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
-                    ->where('kode_barang', $kodeBarang)
-                    ->exists();
+                // update detail
+                DB::table('transfer_barang_detail')
+                    ->where('id_transfer',$id)
+                    ->where('kode_barang',$kodeBarang)
+                    ->update(['qty_approved'=>$qty]);
 
-                if ($exists) {
+                if ($qty > 0) {
+                    // kurangi stok lab asal
                     DB::table('inventaris')
-                        ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
-                        ->where('kode_barang', $kodeBarang)
-                        ->increment('stok_akhir', $qtyApproved);
-                } else {
-                    DB::table('inventaris')->insert([
-                        'kode_ruangan' => $transfer->kode_ruangan_tujuan,
-                        'kode_barang' => $kodeBarang,
-                        'stok_akhir' => $qtyApproved,
-                    ]);
+                        ->where('kode_ruangan',$transfer->kode_ruangan_dari)
+                        ->where('kode_barang',$kodeBarang)
+                        ->decrement('stok_akhir',$qty);
+
+                    // tambah stok lab tujuan
+                    $exists = DB::table('inventaris')
+                        ->where('kode_ruangan',$transfer->kode_ruangan_tujuan)
+                        ->where('kode_barang',$kodeBarang)
+                        ->exists();
+
+                    if ($exists) {
+                        DB::table('inventaris')
+                            ->where('kode_ruangan',$transfer->kode_ruangan_tujuan)
+                            ->where('kode_barang',$kodeBarang)
+                            ->increment('stok_akhir',$qty);
+                    } else {
+                        DB::table('inventaris')->insert([
+                            'kode_ruangan'=>$transfer->kode_ruangan_tujuan,
+                            'kode_barang'=>$kodeBarang,
+                            'stok_akhir'=>$qty
+                        ]);
+                    }
                 }
             }
 
-            // tentukan status baru
+            // tentukan status
             if ($allZero) {
                 $status = 'rejected';
             } elseif ($allFull) {
@@ -286,143 +302,63 @@ class TransferBarangController extends Controller
                 $status = 'partial_approved';
             }
 
-            DB::table('transfer_barang')
-                ->where('id_transfer', $id)
-                ->update([
-                    'status'      => $status,
-                    'approved_by' => $user->id,
-                    'approved_at' => now(),
-                    'updated_at'  => now(),
-                ]);
-
-            // NOTE: di sini kamu bisa tambahkan logika update stok jika mau
-
-            // ==========================
-            // UPDATE STOK LAB ASAL & TUJUAN
-            // ==========================
-            foreach ($validated['detail'] as $d) {
-
-                $kodeBarang = $d['kode_barang'];
-                $qtyApproved = (int) $d['qty_approved'];
-
-                if ($qtyApproved <= 0) continue;
-
-                // kurangi stok lab asal
-                DB::table('inventaris')
-                    ->where('kode_ruangan', $transfer->kode_ruangan_dari)
-                    ->where('kode_barang', $kodeBarang)
-                    ->decrement('stok_akhir', $qtyApproved);
-
-                // tambah stok lab tujuan
-                $exists = DB::table('inventaris')
-                    ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
-                    ->where('kode_barang', $kodeBarang)
-                    ->exists();
-
-                if ($exists) {
-                    DB::table('inventaris')
-                        ->where('kode_ruangan', $transfer->kode_ruangan_tujuan)
-                        ->where('kode_barang', $kodeBarang)
-                        ->increment('stok_akhir', $qtyApproved);
-                } else {
-                    DB::table('inventaris')->insert([
-                        'kode_ruangan' => $transfer->kode_ruangan_tujuan,
-                        'kode_barang' => $kodeBarang,
-                        'stok_akhir' => $qtyApproved,
-                    ]);
-                }
-            }
+            DB::table('transfer_barang')->where('id_transfer',$id)->update([
+                'status'      => $status,
+                'approved_by' => $user->id,
+                'approved_at' => now(),
+                'updated_at'  => now(),
+            ]);
 
             DB::commit();
+            return response()->json(['success'=>true,'status'=>$status,'message'=>'Transfer di-ACC']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transfer di-ACC',
-                'status'  => $status,
-            ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal meng-ACC transfer',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
         }
     }
 
-    /**
-     * POST /api/transfer-barang/{id}/reject
-     * Lab tujuan menolak permintaan
-     */
+    // Reject transfer
     public function reject(Request $request, $id)
     {
         $user = $request->user();
-        if (!$user) {
-            return response()->json(['message' => 'Unauthenticated'], 401);
-        }
+        if (!$user || $user->role !== 'admin_lab')
+            return response()->json(['message'=>'Unauthorized'],403);
 
-        if ($user->role !== 'admin_lab') {
-            return response()->json(['message' => 'Hanya admin lab dapat menolak transfer'], 403);
-        }
+        $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
+        if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
 
-        $transfer = DB::table('transfer_barang')
-            ->where('id_transfer', $id)
-            ->first();
+        $labUser = DB::table('master_lab')->where('kode_bagian',$user->kode_bagian)->first();
+        if (!$labUser || strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan))
+            return response()->json(['message'=>'Anda bukan lab tujuan'],403);
 
-        if (!$transfer) {
-            return response()->json(['message' => 'Transfer tidak ditemukan'], 404);
-        }
-
-        $labUser = DB::table('master_lab')
-            ->where('kode_ruangan', $user->kode_bagian) 
-            ->orWhere('kode_bagian', $user->kode_bagian)
-            ->first();
-
-        if (
-            !$labUser ||
-            strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan)
-        ) {
-            return response()->json(['message' => 'Anda bukan lab tujuan transfer ini'], 403);
-        }
-
-        if ($transfer->status !== 'pending') {
-            return response()->json(['message' => 'Transfer tidak dalam status pending'], 422);
-        }
+        if ($transfer->status !== 'pending')
+            return response()->json(['message'=>'Transfer sudah diproses'],422);
 
         DB::beginTransaction();
-
         try {
             DB::table('transfer_barang_detail')
-                ->where('id_transfer', $id)
+                ->where('id_transfer',$id)
                 ->update([
-                    'qty_approved' => 0,
-                    'updated_at'   => now(),
+                    'qty_approved'=>0,
+                    'updated_at'=>now(),
                 ]);
 
             DB::table('transfer_barang')
-                ->where('id_transfer', $id)
+                ->where('id_transfer',$id)
                 ->update([
-                    'status'      => 'rejected',
-                    'approved_by' => $user->id,
-                    'approved_at' => now(),
-                    'updated_at'  => now(),
+                    'status'=>'rejected',
+                    'approved_by'=>$user->id,
+                    'approved_at'=>now(),
+                    'updated_at'=>now(),
                 ]);
 
             DB::commit();
+            return response()->json(['success'=>true,'message'=>'Transfer ditolak']);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transfer ditolak',
-            ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal menolak transfer',
-                'error'   => $e->getMessage(),
-            ], 500);
+            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
         }
     }
 }

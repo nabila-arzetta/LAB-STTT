@@ -33,13 +33,13 @@ import { id as idLocale } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-
 /* -------------------- Types -------------------- */
 type Barang = {
   kode_barang: string;
   nama_barang: string;
   satuan: string | null;
   stok_akhir?: number | null;
+  stok_sistem?: number | null;
 };
 
 type OpnameItem = {
@@ -54,8 +54,10 @@ type OpnameRowFromApi = {
   tanggal: string;
   kode_ruangan: string;
   nama_lab: string;
+  id_detail: number;
   kode_barang: string;
   nama_barang: string;
+  kategori: string | null;
   satuan: string | null;
   stok_sistem: number;
   stok_fisik: number;
@@ -71,16 +73,61 @@ type Lab = {
   lokasi?: string;
 };
 
-/* -------------------- Component -------------------- */
+const LabHeader = ({
+  title,
+  subtitle,
+  kode,
+  onBack,
+}: {
+  title: string;
+  subtitle?: string;
+  kode?: string;
+  onBack?: () => void;
+}) => {
+  return (
+    <div className="space-y-4">
+      {/* JUDUL HALAMAN */}
+      <h1 className="text-2xl font-bold text-primary">
+        {title}
+      </h1>
+
+      {/* INFO LAB */}
+      {subtitle && (
+        <div className="flex items-start gap-3 pl-1">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="shrink-0 -mt-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+          )}
+
+          <div className="leading-tight">
+            <p className="text-base font-semibold text-foreground">
+              {subtitle}
+            </p>
+            {kode && (
+              <p className="text-sm text-muted-foreground -mt-0.5">
+                {kode}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function StokOpname() {
-  const { user: authUser, setUser: setAuthUser } = useAuth(); // asumsi useAuth menyediakan setUser (jika tidak ada, kita skip set)
+  const { user: authUser, setUser: setAuthUser } = useAuth();
   const [userLoaded, setUserLoaded] = useState(false);
 
-  // peran
   const isSuperadmin = authUser?.role === "superadmin";
   const isAdminLab = authUser?.role === "admin_lab";
 
-  // ADMIN LAB: ambil kode_ruangan dari user (idealnya backend menyertakan ini di response login)
   const [adminLabKodeRuangan, setAdminLabKodeRuangan] = useState<string | null>(
     authUser?.kode_ruangan ?? null
   );
@@ -89,11 +136,13 @@ export default function StokOpname() {
   const [opnameData, setOpnameData] = useState<OpnameRowFromApi[]>([]);
   const [labs, setLabs] = useState<Lab[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [opnameItems, setOpnameItems] = useState<OpnameItem[]>([]);
   const [selectedLabKode, setSelectedLabKode] = useState<string | null>(
     isAdminLab ? adminLabKodeRuangan : null
   );
+  const activeLab = labs.find((l) => l.kode_ruangan === selectedLabKode);
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState<boolean | null>(null);
@@ -108,23 +157,12 @@ export default function StokOpname() {
       }
     : { "Content-Type": "application/json" };
 
-  /* ------------------ Helper: fetch profile if needed ------------------ */
   const fetchProfileIfNeeded = async () => {
-    // jika authUser sudah punya kode_ruangan, kita done
-    if (authUser?.kode_ruangan) {
-      setAdminLabKodeRuangan(authUser.kode_ruangan);
-      setUserLoaded(true);
-      setSelectedLabKode((prev) => (isAdminLab ? authUser.kode_ruangan : prev));
-      return;
-    }
-
-    // jika role bukan admin_lab, tidak perlu ambil kode_ruangan
     if (!isAdminLab) {
       setUserLoaded(true);
       return;
     }
 
-    // fallback: fetch /api/me untuk mendapatkan detail user lengkap
     if (!token) {
       setUserLoaded(true);
       return;
@@ -132,33 +170,56 @@ export default function StokOpname() {
 
     try {
       const res = await fetch("/api/me", { headers });
-      if (!res.ok) throw new Error("Gagal memuat profil");
       const json = await res.json();
-      // asumsikan backend return { success: true, data: { user: { kode_ruangan, ... } } } atau { kode_ruangan, ... }
-      const dataUser = json?.data?.user ?? json?.data ?? json;
-      const kode_ruangan = dataUser?.kode_ruangan ?? null;
 
-      if (kode_ruangan) {
-        setAdminLabKodeRuangan(kode_ruangan);
-        // jika useAuth punya setUser, update supaya konsisten
+      const dataUser = json?.data?.user ?? json?.data ?? json;
+
+      // CARI KODE LAB DI BANYAK TEMPAT
+      const kodeRuangan =
+        dataUser?.kode_ruangan ?? dataUser?.lab?.kode_ruangan ?? null;
+
+      if (!kodeRuangan && dataUser?.kode_bagian) {
         try {
-          if (setAuthUser) {
-            setAuthUser({ ...authUser, kode_ruangan });
+          const labRes = await fetch("/api/labs/options", { headers });
+          const labJson = await labRes.json();
+          const allLabs = labJson?.data ?? [];
+
+          const labFound = allLabs.find(
+            (l: any) =>
+              String(l.kode_bagian).toUpperCase() ===
+              String(dataUser.kode_bagian).toUpperCase()
+          );
+
+          if (labFound) {
+            setAdminLabKodeRuangan(labFound.kode_ruangan);
+
+            if (setAuthUser) {
+              setAuthUser({
+                ...authUser,
+                kode_ruangan: labFound.kode_ruangan,
+              });
+            }
           }
-        } catch (_) {}
+        } catch (e) {
+          console.warn("Gagal fallback cari lab:", e);
+        }
+      }
+
+      if (kodeRuangan) {
+        const normalized = String(kodeRuangan).toUpperCase();
+        setAdminLabKodeRuangan(normalized);
+
+        if (setAuthUser) {
+          setAuthUser({ ...authUser, kode_ruangan: normalized });
+        }
       }
     } catch (e) {
       console.warn("fetchProfileIfNeeded:", e);
     } finally {
       setUserLoaded(true);
-      // juga set selectedLabKode jika admin
-      setSelectedLabKode((prev) =>
-        prev ?? (isAdminLab && adminLabKodeRuangan ? adminLabKodeRuangan : prev)
-      );
     }
   };
 
-  /* ------------------ API LOAD FUNCTIONS ------------------ */
   // LOAD OPNAME
   const loadOpname = async (labParam?: string | null) => {
     if (!token) {
@@ -177,22 +238,29 @@ export default function StokOpname() {
           setOpnameData([]);
           return;
         }
-        url = `/api/stok-opname?lab=${labParam.toUpperCase()}`;
+        url = `/api/stok-opname?lab=${encodeURIComponent(labParam.toUpperCase())}`;
       }
 
       if (isAdminLab) {
-        // Pastikan kita punya kode_ruangan admin
         if (!adminLabKodeRuangan) {
           setOpnameData([]);
           return;
         }
-        url = `/api/stok-opname?lab=${adminLabKodeRuangan}`;
+        url = `/api/stok-opname?lab=${encodeURIComponent(adminLabKodeRuangan)}`;
       }
 
       const res = await fetch(url, { headers });
       const json = await res.json();
       if (!json.success) throw new Error(json.message || "Gagal memuat");
-      setOpnameData(Array.isArray(json.data) ? json.data : []);
+
+      const raw = Array.isArray(json.data) ? json.data : [];
+
+      const sorted = raw.sort(
+        (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+      );
+
+      setOpnameData(sorted);
+
     } catch (err: any) {
       toast.error(err?.message ?? "Gagal memuat data opname");
     } finally {
@@ -241,58 +309,77 @@ export default function StokOpname() {
       console.error("loadLabs error:", e);
     }
   };
-
-  /* ------------------ INITIAL / REACTIVE LOADS ------------------ */
+  
   useEffect(() => {
-    // cek token
     if (!token) {
       setHasToken(false);
       return;
     }
+
     setHasToken(true);
-    // pastikan kita punya user info (kode_ruangan) kalau admin_lab
-    fetchProfileIfNeeded();
+
+    const init = async () => {
+      setInitialLoading(true);
+
+      try {
+        await Promise.all([
+          fetchProfileIfNeeded(),
+          isSuperadmin ? loadLabs() : Promise.resolve(),
+        ]);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setUserLoaded(true);
+        setInitialLoading(false); // ✅ INI YANG PENTING
+      }
+    };
+
+    init();
   }, []);
 
   // setelah userLoaded, jalankan task awal yang depend pada role & kode_ruangan
   useEffect(() => {
     if (!userLoaded) return;
+    if (!token) return;
 
-    setLoading(true);
-    const tasks: Promise<any>[] = [];
+    const loadData = async () => {
+      setLoading(true);
 
-    if (isAdminLab) {
-      if (adminLabKodeRuangan) {
-        setSelectedLabKode(adminLabKodeRuangan);
-        tasks.push(loadOpname(adminLabKodeRuangan));
-        tasks.push(loadBarangForLab(adminLabKodeRuangan));
-      } else {
-        // tidak ada kode_ruangan -> kosongkan data
-        setOpnameData([]);
-        setBarangList([]);
+      try {
+        // ADMIN LAB
+        if (isAdminLab && adminLabKodeRuangan) {
+          setSelectedLabKode(adminLabKodeRuangan);
+
+          await loadOpname(adminLabKodeRuangan); // hanya sekali
+        }
+
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
       }
-    }
+    };
 
-    if (isSuperadmin) {
-      tasks.push(loadLabs());
-    }
-
-    Promise.all(tasks)
-      .catch((e) => console.error(e))
-      .finally(() => setLoading(false));
+    loadData();
   }, [userLoaded, adminLabKodeRuangan]);
 
   // SUPERADMIN: ketika pilih lab
   useEffect(() => {
     if (!isSuperadmin) return;
     if (!selectedLabKode) return;
-    setLoading(true);
-    Promise.all([loadOpname(selectedLabKode), loadBarangForLab(selectedLabKode)])
-      .catch((e) => console.error(e))
-      .finally(() => setLoading(false));
+
+    const loadForLab = async () => {
+      try {
+        setInitialLoading(true);   
+        await loadOpname(selectedLabKode);
+      } finally {
+        setInitialLoading(false); 
+      }
+    };
+
+    loadForLab();
   }, [selectedLabKode]);
 
-  /* ------------------ Helpers ------------------ */
   const filterByMonthYear = (lab: string | null) => {
     if (!lab || !selectedMonth || !selectedYear) return [];
     const m = Number(selectedMonth);
@@ -313,7 +400,7 @@ export default function StokOpname() {
     );
   };
 
-  /* ------------------ Export CSV/PDF ------------------ */
+  /* Export CSV/PDF */
   const handleExportCsv = (labParam?: string | null) => {
     const lab = labParam ?? (isAdminLab ? adminLabKodeRuangan : selectedLabKode);
     if (!lab) return toast.error("Pilih lab terlebih dahulu.");
@@ -398,16 +485,26 @@ export default function StokOpname() {
   /* ------------------ Opname start / submit ------------------ */
   const openStartOpname = async () => {
     const labKode = isAdminLab ? adminLabKodeRuangan : selectedLabKode;
+
+    if (!labKode) {
+      toast.error("Lab tidak ditemukan.");
+      return;
+    }
+
+    // LOAD BARANG HANYA KETIKA UNTUK DIALOG
     const data = await loadBarangForLab(labKode);
-    const items: OpnameItem[] = data.map((b) => ({
+
+    const items: OpnameItem[] = data.map((b: any) => ({
       kode_barang: b.kode_barang,
       nama_barang: b.nama_barang,
-      stok_sistem: b.stok_akhir ?? 0,
-      stok_fisik: b.stok_akhir ?? 0,
+      stok_sistem: b.stok_sistem ?? b.stok_akhir ?? 0,
+      stok_fisik: b.stok_sistem ?? b.stok_akhir ?? 0,
     }));
+
     setOpnameItems(items);
     setDialogOpen(true);
   };
+
 
   const handleChangeItem = (kode: string, newStokFisik: number) => {
     setOpnameItems((prev) => prev.map((p) => (p.kode_barang === kode ? { ...p, stok_fisik: Number(newStokFisik) } : p)));
@@ -437,11 +534,11 @@ export default function StokOpname() {
       return;
     }
 
-    const kodeRuangan = isAdminLab ? adminLabKodeRuangan : selectedLabKode;
-    if (!kodeRuangan) return toast.error("Kode ruangan tidak ditemukan.");
+    const kodeRuanganToSend = isAdminLab ? authUser?.kode_bagian : selectedLabKode;
+    if (!kodeRuanganToSend) return toast.error("Kode ruangan tidak ditemukan.");
 
     const payload = {
-      kode_ruangan: kodeRuangan,
+      kode_ruangan: kodeRuanganToSend,
       barang: modifiedItems.map((i) => ({
         kode_barang: i.kode_barang,
         stok_sistem: i.stok_sistem,
@@ -461,7 +558,9 @@ export default function StokOpname() {
 
       toast.success("Stok Opname berhasil disimpan!");
       setDialogOpen(false);
-      await loadOpname(kodeRuangan);
+
+      const labToReload = isAdminLab ? adminLabKodeRuangan : selectedLabKode;
+      await loadOpname(labToReload ?? undefined);
     } catch (err: any) {
       toast.error(err?.message ?? "Gagal menyimpan opname");
     } finally {
@@ -469,7 +568,24 @@ export default function StokOpname() {
     }
   };
 
-  /* ------------------ Render ------------------ */
+  if (isSuperadmin && initialLoading) {
+    return (
+      <div className="flex justify-center pt-6">
+        <p className="text-muted-foreground animate-pulse text-base">
+          Memuat data...
+        </p>
+      </div>
+    );
+  }
+
+  if (isAdminLab && (loading || hasToken === null || !userLoaded)) {
+    return (
+        <p className="flex justify-center pt-6 text-muted-foreground animate-pulse">
+        Memuat data...
+      </p>
+    );
+  }
+
   if (hasToken === false) {
     return (
       <div className="space-y-6">
@@ -485,22 +601,24 @@ export default function StokOpname() {
 
   // Superadmin view
   if (isSuperadmin) {
-    if (loading) return <p className="p-6">Memuat data...</p>;
+    const sortedLabs = [...labs].sort((a, b) =>
+      a.nama_lab.localeCompare(b.nama_lab)
+    );
 
     if (!selectedLabKode) {
       return (
         <div className="space-y-6">
-          <div>
-            <h1 className="text-3xl font-bold text-primary">Stok Opname</h1>
-            <p className="text-muted-foreground">Pilih laboratorium untuk melihat riwayat stok opname.</p>
-          </div>
+          <LabHeader title="Stok Opname" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {labs.map((lab) => (
+            {sortedLabs.map((lab) => (
               <div
                 key={lab.kode_ruangan}
                 className="p-6 border rounded-lg cursor-pointer hover:shadow-md"
-                onClick={() => setSelectedLabKode(lab.kode_ruangan)}
+                onClick={() => {
+                  setInitialLoading(true);   
+                  setSelectedLabKode(lab.kode_ruangan);
+                }}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="p-3 bg-primary/20 rounded-lg">
@@ -521,17 +639,20 @@ export default function StokOpname() {
     const lab = labs.find((l) => l.kode_ruangan === selectedLabKode);
     const filteredByLab = opnameData.filter((o) => o.kode_ruangan === selectedLabKode);
 
+    const sortedOpname = [...filteredByLab].sort(
+      (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+    );
+
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedLabKode(null)}>
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-primary">{lab?.nama_lab}</h1>
-            <p className="text-muted-foreground">{lab?.kode_ruangan}</p>
-          </div>
-        </div>
+
+        <LabHeader
+          title="Stok Opname"
+          subtitle={activeLab?.nama_lab}
+          kode={activeLab?.kode_ruangan}
+          onBack={() => setSelectedLabKode(null)}
+        />
+
 
         {/* FILTER */}
         <div className="flex items-center justify-between">
@@ -601,16 +722,21 @@ export default function StokOpname() {
               </tr>
             </thead>
             <tbody>
-              {filteredByLab.length === 0 ? (
+              {sortedOpname.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-muted-foreground">
                     Belum ada data stok opname
                   </td>
                 </tr>
               ) : (
-                filteredByLab.map((item) => (
-                  <tr key={`${item.id_opname}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
-                    <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
+                sortedOpname.map((item) => (
+                  <tr
+                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                    className="border-b hover:bg-muted/40"
+                  >
+                    <td className="p-3">
+                      {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}
+                    </td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
                     <td className="p-3">{item.stok_fisik}</td>
@@ -621,34 +747,44 @@ export default function StokOpname() {
             </tbody>
           </table>
         </div>
+
       </div>
     );
+
   }
 
   // ADMIN LAB VIEW
   if (isAdminLab) {
-    // pastikan adminLabKodeRuangan sudah tersedia
     const filteredByLab = opnameData;
+
+    const sortedOpname = [...filteredByLab].sort(
+      (a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime()
+    );
 
     return (
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Stok Opname - {adminLabKodeRuangan ?? "—"}</h1>
-            <p className="text-muted-foreground mt-2">Pengecekan dan penyesuaian stok.</p>
-          </div>
+        <div className="flex items-center justify-between">
+          <LabHeader
+            title="Stok Opname"
+            subtitle={
+              labs.find((l) => l.kode_ruangan === adminLabKodeRuangan)?.nama_lab
+            }
+            kode={adminLabKodeRuangan}
+          />
 
           <Button onClick={openStartOpname}>
             <Plus className="w-4 h-4" /> Mulai Stok Opname
           </Button>
         </div>
 
-        {/* Dialog Start */}
+        {/* DIALOG */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-3xl">
             <DialogHeader>
               <DialogTitle>Mulai Stok Opname</DialogTitle>
-              <DialogDescription>Masukkan stok fisik setiap barang.</DialogDescription>
+              <DialogDescription>
+                Masukkan stok fisik setiap barang.
+              </DialogDescription>
             </DialogHeader>
 
             <div className="max-h-[420px] overflow-y-auto border rounded-md p-3 mt-2">
@@ -676,14 +812,21 @@ export default function StokOpname() {
                               type="number"
                               min={0}
                               value={item.stok_fisik}
-                              onChange={(e) => handleChangeItem(item.kode_barang, Number(e.target.value))}
+                              onChange={(e) =>
+                                handleChangeItem(
+                                  item.kode_barang,
+                                  Number(e.target.value)
+                                )
+                              }
                             />
                           </td>
                           <td className="p-2">
                             {selisih === 0 ? (
                               <Badge variant="outline">Sesuai</Badge>
                             ) : (
-                              <Badge variant={selisih > 0 ? "default" : "destructive"}>{selisih > 0 ? "+" + selisih : selisih}</Badge>
+                              <Badge variant={selisih > 0 ? "default" : "destructive"}>
+                                {selisih > 0 ? `+${selisih}` : selisih}
+                              </Badge>
                             )}
                           </td>
                         </tr>
@@ -703,9 +846,10 @@ export default function StokOpname() {
           </DialogContent>
         </Dialog>
 
-        {/* History */}
+        {/* RIWAYAT */}
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
+
           <div className="flex items-center gap-2">
             <Select onValueChange={setSelectedMonth}>
               <SelectTrigger className="w-[120px]">
@@ -713,18 +857,8 @@ export default function StokOpname() {
               </SelectTrigger>
               <SelectContent>
                 {[
-                  "Januari",
-                  "Februari",
-                  "Maret",
-                  "April",
-                  "Mei",
-                  "Juni",
-                  "Juli",
-                  "Agustus",
-                  "September",
-                  "Oktober",
-                  "November",
-                  "Desember",
+                  "Januari","Februari","Maret","April","Mei","Juni",
+                  "Juli","Agustus","September","Oktober","November","Desember",
                 ].map((bln, i) => (
                   <SelectItem key={i} value={String(i + 1)}>
                     {bln}
@@ -749,10 +883,11 @@ export default function StokOpname() {
               </SelectContent>
             </Select>
 
-            <Button onClick={() => handleExportCsv(adminLabKodeRuangan)} className="bg-primary text-white">
+            <Button onClick={() => handleExportCsv(adminLabKodeRuangan)}>
               Download CSV
             </Button>
-            <Button onClick={() => handleExportPdf(adminLabKodeRuangan)} className="bg-red-600 text-white">
+
+            <Button onClick={() => handleExportPdf(adminLabKodeRuangan)}>
               Download PDF
             </Button>
           </div>
@@ -770,26 +905,36 @@ export default function StokOpname() {
               </tr>
             </thead>
             <tbody>
-              {filteredByLab.length === 0 ? (
+              {sortedOpname.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-muted-foreground">
                     Belum ada data.
                   </td>
                 </tr>
               ) : (
-                filteredByLab.map((item) => (
-                  <tr key={`${item.id_opname}-${item.kode_barang}`} className="border-b hover:bg-muted/40">
-                    <td className="p-3">{format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}</td>
+                sortedOpname.map((item) => (
+                  <tr
+                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                    className="border-b hover:bg-muted/40"
+                  >
+                    <td className="p-3">
+                      {format(new Date(item.tanggal), "dd MMMM yyyy", {
+                        locale: idLocale,
+                      })}
+                    </td>
                     <td className="p-3">{item.nama_barang}</td>
                     <td className="p-3">{item.stok_sistem}</td>
                     <td className="p-3">{item.stok_fisik}</td>
-                    <td className="p-3">{getSelisihBadge(item.selisih)}</td>
+                    <td className="p-3">
+                      {getSelisihBadge(item.selisih)}
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+
       </div>
     );
   }

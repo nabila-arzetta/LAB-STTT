@@ -22,13 +22,13 @@ class MasterBarang extends Model
         'kode_ruangan',
     ];
 
-    // === Relasi ke Barang (per lab)
+    // Relasi ke Barang (per lab)
     public function barang()
     {
         return $this->hasMany(Barang::class, 'master_barang_id', 'id');
     }
 
-    // === Scope per-lab (kode_ruangan)
+    // Scope per-lab (kode_ruangan)
     public function scopeByLab($query, $kode)
     {
         return $query->where('kode_ruangan', $kode);

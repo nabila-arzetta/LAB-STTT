@@ -26,14 +26,12 @@ export const DashboardHeader: React.FC = () => {
     <header className="w-full border-b bg-white/80 backdrop-blur shadow-sm"> 
       <div className="mx-auto flex items-center justify-between px-6 py-4"> 
  
-        {/* Kiri: Judul Sistem */} 
         <div className="min-w-0"> 
           <h2 className="text-xl font-bold text-primary leading-tight"> 
             Inventaris STTT 
           </h2> 
         </div> 
  
-        {/* Kanan: Logout Button */} 
         <button 
           onClick={handleLogout} 
           disabled={isLoggingOut}

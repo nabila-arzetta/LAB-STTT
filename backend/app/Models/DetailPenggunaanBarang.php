@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class DetailPenggunaanBarang extends Model
 {
-    protected $table = 'penggunaan_barang_detail'; // FIXED
+    protected $table = 'penggunaan_barang_detail'; 
     protected $primaryKey = 'id';
 
     protected $fillable = [
@@ -15,7 +15,7 @@ class DetailPenggunaanBarang extends Model
         'quantity',
     ];
 
-    public $timestamps = true; // tabel kamu ada created_at / updated_at
+    public $timestamps = true; 
 
     public function barang()
     {
