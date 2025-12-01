@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+# o-lab Frontend
+Frontend aplikasi operasional laboratorium Politeknik STTT Bandung
 
-## Project info
+## Persyaratan Sistem
+- Node.js (versi 16 atau lebih tinggi)
+- npm atau yarn
 
-**URL**: https://lovable.dev/projects/02ac9e40-992f-40fe-b208-d3ffc8073c2f
+## Instalasi
 
-## How can I edit this code?
+1. **Clone Repository**
+   ```bash
+   git clone <repository-url>
+   cd frontend
+   ```
 
-There are several ways of editing your application.
+2. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-**Use Lovable**
+3. **Setup Environment**
+   Buat file `.env` di root folder frontend dan sesuaikan konfigurasi API backend:
+   ```
+   VITE_API_BASE_URL=http://localhost:8000/api
+   ```
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/02ac9e40-992f-40fe-b208-d3ffc8073c2f) and start prompting.
+## Menjalankan Aplikasi
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Aplikasi akan berjalan di `http://localhost:5173` (atau port yang ditentukan).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Build untuk Production
 
-**Use GitHub Codespaces**
+```bash
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Teknologi yang Digunakan
 
-## What technologies are used for this project?
+- **Vite** - Build tool dan dev server
+- **TypeScript** - Type-safe JavaScript
+- **React** - UI library
+- **shadcn-ui** - Komponen UI
+- **Tailwind CSS** - CSS framework
+- **Axios** - HTTP client untuk API calls
 
-This project is built with:
+## Struktur Proyek
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `src/components/` - Komponen UI reusable
+- `src/pages/` - Halaman aplikasi
+- `src/services/` - Service untuk API calls
+- `src/hooks/` - Custom React hooks
+- `src/contexts/` - React contexts
+- `src/lib/` - Utility functions
 
-## How can I deploy this project?
+## Koneksi ke Backend
 
-Simply open [Lovable](https://lovable.dev/projects/02ac9e40-992f-40fe-b208-d3ffc8073c2f) and click on Share -> Publish.
+Pastikan backend Laravel sudah berjalan di `http://localhost:8000`. Frontend akan mengirim request ke endpoint API backend untuk autentikasi, data inventaris, dan operasi lainnya.
 
-## Can I connect a custom domain to my Lovable project?
+## Development
 
-Yes, you can!
+### Menambah Halaman Baru
+1. Buat file baru di `src/pages/`
+2. Tambahkan route di `src/App.tsx` atau router yang digunakan
+3. Implementasikan komponen sesuai kebutuhan
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Menambah API Service
+1. Buat file baru di `src/services/`
+2. Gunakan axios untuk HTTP requests
+3. Export functions untuk digunakan di komponen
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Styling
+Gunakan Tailwind CSS classes langsung di komponen atau custom CSS di `src/index.css`.
+
+## Testing
+
+Jalankan test dengan:
+```bash
+npm run test
+```
+
+## Deployment
+
+### Manual Deployment
+1. Build aplikasi: `npm run build`
+2. Upload folder `dist/` ke web server
+3. Konfigurasi server untuk serve static files
+
+## Kontribusi
+
+1. Fork repository
+2. Buat branch fitur baru (`git checkout -b feature/AmazingFeature`)
+3. Commit perubahan (`git commit -m 'Add some AmazingFeature'`)
+4. Push ke branch (`git push origin feature/AmazingFeature`)
+5. Buat Pull Request
