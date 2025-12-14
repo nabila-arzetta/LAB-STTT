@@ -45,6 +45,9 @@ export const AppSidebar: React.FC = () => {
   const { state, toggleSidebar } = useSidebar();
   const location = useLocation();
   const { user } = useAuth();
+    if (user?.role === "logistik") {
+    return null;
+  }
   const isMobile = useIsMobile();
 
   const isSuperAdmin = user?.role === "superadmin";
@@ -63,7 +66,7 @@ export const AppSidebar: React.FC = () => {
 
     { title: "Data Lab", url: "/master/lab", icon: Building2 },
     { title: "Master Barang", url: "/master/barang", icon: Boxes },
-    { title: "Penerimaan Logistik", url: "/penerimaan-logistik", icon: PackagePlus },
+    { title: "Logistik", url: "/logistik", icon: PackagePlus },
     { title: "Penggunaan Barang", url: "/penggunaan", icon: ClipboardList },
     { title: "Transfer Barang", url: "/transfer", icon: ArrowLeftRight },
     { title: "Inventaris Barang", url: "/inventaris", icon: Database },

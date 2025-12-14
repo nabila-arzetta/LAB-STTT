@@ -8,90 +8,84 @@ use Illuminate\Support\Facades\DB;
 
 class MasterBarangController extends Controller
 {
-    // List semua master barang (bisa filter per lab)
+    // LIST SEMUA BARANG (GLOBAL)
     public function index(Request $request)
     {
-        $query = DB::table('master_barang as mb')
+        $query = DB::table('master_barang')
             ->select(
-                'mb.id',
-                'mb.kode_barang',
-                'mb.nama_barang',
-                'mb.deskripsi',
-                'mb.kategori',
-                'mb.satuan',
-                'mb.kode_ruangan',
-                'mb.id_lab',
-                'ml.nama_lab'
+                'id',
+                'kode_barang',
+                'nama_barang',
+                'deskripsi',
+                'kategori',
+                'satuan',
+                'created_at',
+                'updated_at'
             )
-            ->leftJoin('master_lab as ml', 'ml.id_lab', '=', 'mb.id_lab')
-            ->orderBy('mb.nama_barang', 'asc');
+            ->orderBy('nama_barang', 'asc');
 
-        // Filter berdasarkan id_lab
-        if ($request->filled('id_lab')) {
-            $query->where('mb.id_lab', $request->id_lab);
-        }
-
-        // Filter pencarian
+        // Pencarian
         if ($request->filled('q')) {
             $q = $request->q;
             $query->where(function ($qr) use ($q) {
-                $qr->where('mb.nama_barang', 'like', "%$q%")
-                   ->orWhere('mb.kode_barang', 'like', "%$q%");
+                $qr->where('nama_barang', 'like', "%$q%")
+                   ->orWhere('kode_barang', 'like', "%$q%");
             });
         }
 
-        $barang = $query->get();
-
         return response()->json([
-            'data' => $barang,
+            'data' => $query->get()
         ]);
     }
 
-    // Tambah master barang baru
+    // TAMPIL DETAIL
+    public function show($id)
+    {
+        $barang = DB::table('master_barang')->where('id', $id)->first();
+
+        if (!$barang) {
+            return response()->json(['message' => 'Barang tidak ditemukan'], 404);
+        }
+
+        return response()->json(['data' => $barang]);
+    }
+
+    // TAMBAH BARANG (KODE_BARANG AUTO)
     public function store(Request $request)
     {
         $data = $request->validate([
-            'kode_barang'   => 'required|string|max:100|unique:master_barang,kode_barang',
-            'nama_barang'   => 'required|string|max:255',
-            'satuan'        => 'nullable|string|max:50',
-            'deskripsi'     => 'nullable|string',
-            'kategori'      => 'nullable|string|max:50',
-            'id_lab'        => 'nullable|integer|exists:master_lab,id_lab',
+            'nama_barang' => 'required|string|max:255|unique:master_barang,nama_barang',
+            'satuan'      => 'nullable|string|max:50',
+            'deskripsi'   => 'nullable|string',
+            'kategori'    => 'nullable|string|max:50',
         ]);
 
-        // Ambil kode_ruangan otomatis berdasarkan id_lab
-        $kodeRuangan = null;
-        if (!empty($data['id_lab'])) {
-            $lab = DB::table('master_lab')->where('id_lab', $data['id_lab'])->first();
-            $kodeRuangan = $lab ? $lab->kode_ruangan : null;
-        }
+        $lastKode = DB::table('master_barang')->max('kode_barang');
+        $newKode  = ($lastKode ?? 0) + 1;
 
-        // Simpan ke DB
-        $barangId = DB::table('master_barang')->insertGetId([
-            'kode_barang'  => $data['kode_barang'],
-            'nama_barang'  => $data['nama_barang'],
-            'deskripsi'    => $data['deskripsi'] ?? '',
-            'kategori'     => $data['kategori'] ?? 'alat',
-            'satuan'       => $data['satuan'] ?? 'unit',
-            'kode_ruangan' => $kodeRuangan ?? '-',
-            'id_lab'       => $data['id_lab'] ?? null,
-            'created_at'   => now(),
-            'updated_at'   => now(),
+        $id = DB::table('master_barang')->insertGetId([
+            'kode_barang' => $newKode, 
+            'nama_barang' => $data['nama_barang'],
+            'satuan'      => $data['satuan'] ?? 'unit',
+            'deskripsi'   => $data['deskripsi'] ?? '',
+            'kategori'    => $data['kategori'] ?? 'alat',
+            'created_at'  => now(),
+            'updated_at'  => now(),
         ]);
 
-        $barang = DB::table('master_barang')->find($barangId);
+        $barang = DB::table('master_barang')->where('id', $id)->first();
 
         return response()->json([
-            'message' => 'Master Barang berhasil dibuat',
-            'data' => $barang,
+            'message' => 'Master barang berhasil ditambahkan',
+            'data'    => $barang
         ], 201);
     }
 
-    // Perbarui data barang
+    // UPDATE BARANG
     public function update(Request $request, $id)
     {
         $data = $request->validate([
-            'nama_barang' => 'required|string|max:255',
+            'nama_barang' => 'required|string|max:255|unique:master_barang,nama_barang,' . $id,
             'satuan'      => 'nullable|string|max:50',
             'deskripsi'   => 'nullable|string',
             'kategori'    => 'nullable|string|max:50',
@@ -102,98 +96,79 @@ class MasterBarangController extends Controller
             return response()->json(['message' => 'Barang tidak ditemukan'], 404);
         }
 
-        DB::table('master_barang')->where('id', $id)->update([
-            'nama_barang' => $data['nama_barang'],
-            'satuan' => $data['satuan'] ?? 'unit',
-            'deskripsi' => $data['deskripsi'] ?? '',
-            'kategori'    => $data['kategori'] ?? 'alat',
-            'updated_at' => now(),
-        ]);
+        DB::table('master_barang')
+            ->where('id', $id)
+            ->update([
+                'nama_barang' => $data['nama_barang'],
+                'satuan'      => $data['satuan'] ?? 'unit',
+                'deskripsi'   => $data['deskripsi'] ?? '',
+                'kategori'    => $data['kategori'] ?? 'alat',
+                'updated_at'  => now(),
+            ]);
 
         return response()->json(['message' => 'Barang berhasil diperbarui']);
     }
 
-    // Menghapus barang
+    // DELETE BARANG (AMAN KARENA FK RESTRICT)
     public function destroy($id)
     {
-        $exists = DB::table('master_barang')->where('id', $id)->exists();
-        if (!$exists) {
-            return response()->json(['message' => 'Barang tidak ditemukan'], 404);
+        try {
+            $exists = DB::table('master_barang')->where('id', $id)->exists();
+            if (!$exists) {
+                return response()->json(['message' => 'Barang tidak ditemukan'], 404);
+            }
+
+            DB::table('master_barang')->where('id', $id)->delete();
+
+            return response()->json(['message' => 'Barang berhasil dihapus']);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json([
+                'message' => 'Barang tidak bisa dihapus karena sedang digunakan dalam transaksi.'
+            ], 409);
         }
-
-        DB::table('master_barang')->where('id', $id)->delete();
-
-        return response()->json(['message' => 'Barang berhasil dihapus']);
     }
 
-    // Pencarian master barang
+
+    // SEARCH GLOBAL
     public function search(Request $request)
     {
-        $q     = trim((string) $request->get('q', ''));
-        $limit = (int) $request->get('limit', 20);
-        $limit = max(1, min($limit, 50));
+        $q = trim((string) $request->get('q', ''));
 
-        $qb = DB::table('master_barang as mb')
-            ->select('mb.id', 'mb.kode_barang', 'mb.nama_barang')
-            ->orderBy('mb.nama_barang');
+        $query = DB::table('master_barang')
+            ->select('id', 'kode_barang', 'nama_barang')
+            ->orderBy('nama_barang');
 
         if ($q !== '') {
-            $qb->where(function ($w) use ($q) {
-                $w->where('mb.nama_barang', 'like', "%{$q}%")
-                  ->orWhere('mb.kode_barang', 'like', "%{$q}%");
+            $query->where(function ($w) use ($q) {
+                $w->where('nama_barang', 'like', "%$q%")
+                  ->orWhere('kode_barang', 'like', "%$q%");
             });
         }
 
-        $rows = $qb->limit($limit)->get();
-
-        return response()->json(['data' => $rows], 200);
+        return response()->json([
+            'data' => $query->limit(30)->get()
+        ]);
     }
 
-    public function byLab($kode_ruangan)
+    public function autocomplete(Request $request)
     {
-        try {
-            // Normalisasi kode ruangan → uppercase
-            $kode_ruangan = strtoupper($kode_ruangan);
+        $q = trim($request->get('q', ''));
 
-            // Ambil semua barang yang cocok dengan kode_ruangan
-            $barang = DB::table('master_barang')
-                ->where(DB::raw('UPPER(kode_ruangan)'), $kode_ruangan)
-                ->get();
-
+        if ($q === '') {
             return response()->json([
-                "success" => true,
-                "data" => $barang
+                'data' => []
             ]);
-
-        } catch (\Throwable $e) {
-            return response()->json([
-                "success" => false,
-                "message" => "Server Error",
-                "error" => $e->getMessage()
-            ], 500);
         }
-    }
 
-
-    public function show($id)
-    {
-        $barang = DB::table('master_barang as mb')
-            ->select(
-                'mb.*',
-                'ml.nama_lab'
-            )
-            ->leftJoin('master_lab as ml', 'ml.id_lab', '=', 'mb.id_lab')
-            ->where('mb.id', $id)
-            ->first();
-
-        if (!$barang) {
-            return response()->json([
-                'message' => 'Barang tidak ditemukan'
-            ], 404);
-        }
+        $data = DB::table('master_barang')
+            ->select('id', 'nama_barang')
+            ->where('nama_barang', 'LIKE', $q . '%')
+            ->orderBy('nama_barang', 'asc')
+            ->limit(10)
+            ->get();
 
         return response()->json([
-            'data' => $barang
+            'data' => $data
         ]);
     }
 

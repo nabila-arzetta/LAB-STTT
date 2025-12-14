@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { DataTable } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -213,88 +212,6 @@ const MasterLab: React.FC = () => {
     }
   };
 
-  const columns = [
-    {
-      key: 'no',
-      header: 'No',
-      className: 'w-16 text-center',
-      render: (lab: Lab) => {
-        const index = filteredLab.findIndex((item) => item === lab);
-        return index >= 0 ? index + 1 : '-';
-      },
-    },
-    {
-      key: 'nama_lab',
-      header: 'Nama Laboratorium',
-      render: (lab: Lab) => (
-        <div className="flex items-center gap-2">
-          <Building className="w-4 h-4 text-primary" />
-          <span>{lab.nama_lab}</span>
-        </div>
-      ),
-    },
-    { key: 'lokasi', header: 'Lokasi' },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (lab: Lab) => (
-        isAktif(lab.status)
-          ? (
-            <span
-              className="inline-block px-3 py-1 text-sm font-medium rounded-full 
-                          bg-green-100 text-green-700 border border-green-300 
-                          select-none cursor-default"
-            >
-              Aktif
-            </span>
-          ) : (
-            <span
-              className="inline-block px-3 py-1 text-sm font-medium rounded-full 
-                          bg-gray-100 text-gray-700 border border-gray-300 
-                          select-none cursor-default"
-            >
-              Nonaktif
-            </span>
-          )
-      ),
-    },
-    {
-      key: 'kode_bagian',
-      header: 'Kode Bagian',
-      render: (lab: Lab) => <Badge variant="outline">{lab.kode_bagian ?? '-'}</Badge>,
-    },
-  ];
-
-  const actions = (lab: Lab) => {
-    const canEdit = isSuperAdmin || lab.kode_bagian === userKode;
-    return (
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handleEdit(lab)}
-          disabled={!canEdit}
-        >
-          <Edit className="w-4 h-4" />
-        </Button>
-
-        {isSuperAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive"
-            onClick={() => {
-              setSelectedLab(lab);
-              setIsDeleteDialogOpen(true);
-            }}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
-    );
-  };
-
   if (loading || !user) {
     return (
       <div className="flex justify-center pt-6">
@@ -395,21 +312,112 @@ const MasterLab: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="w-full overflow-x-auto rounded-lg border">
-        <div className="min-w-[650px]">
-          <DataTable
-            data={filteredLab}
-            columns={columns}
-            searchPlaceholder="Cari laboratorium..."
-            onSearch={setSearchTerm}
-            searchTerm={searchTerm}
-            emptyMessage="Tidak ada laboratorium ditemukan"
-            actions={actions}
-          />
-        </div>
-      </div>
+      {/* HEADER TABLE + SEARCH */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6 mb-2">
+          <h2 className="text-lg font-semibold">Daftar Laboratorium</h2>
 
-      {/* Delete Dialog */}
+          <div className="flex items-center gap-3">
+            <Input
+              type="text"
+              placeholder="Cari laboratorium..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-64"
+            />
+
+            <p className="text-sm whitespace-nowrap">
+              Total Lab: <span className="font-bold">{labs.length}</span>
+              {searchTerm && (
+                <> | Hasil: <span className="font-bold">{filteredLab.length}</span></>
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* TABLE */}
+        <div className="overflow-x-auto border rounded-md">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                <th className="p-2 text-left">No</th>
+                <th className="p-2 text-left">Nama Laboratorium</th>
+                <th className="p-2 text-left">Lokasi</th>
+                <th className="p-2 text-left">Status</th>
+                <th className="p-2 text-left">Kode Bagian</th>
+                <th className="p-2 text-left">Aksi</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredLab.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                    Tidak ada laboratorium ditemukan
+                  </td>
+                </tr>
+              ) : (
+                filteredLab.map((lab) => {
+                  const nomor = labs.findIndex(l => l.id_lab === lab.id_lab) + 1;
+                  const canEdit = isSuperAdmin || lab.kode_bagian === userKode;
+
+                  return (
+                    <tr key={lab.id_lab} className="border-b hover:bg-muted/30">
+                      <td className="p-2 font-medium">{nomor}</td>
+
+                      <td className="p-2">
+                        <div className="flex items-center gap-2">
+                          <Building className="w-4 h-4 text-primary" />
+                          {lab.nama_lab}
+                        </div>
+                      </td>
+
+                      <td className="p-2">{lab.lokasi ?? '-'}</td>
+
+                      <td className="p-2">
+                        {isAktif(lab.status) ? (
+                          <Badge className="bg-green-100 text-green-700 border border-green-300">
+                            Aktif
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Nonaktif</Badge>
+                        )}
+                      </td>
+
+                      <td className="p-2">
+                        <Badge variant="outline">{lab.kode_bagian}</Badge>
+                      </td>
+
+                      <td className="p-2 flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!canEdit}
+                          onClick={() => handleEdit(lab)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+
+                        {isSuperAdmin && (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => {
+                              setSelectedLab(lab);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
       <Dialog open={isDeleteDialogOpen} onOpenChange={(v) => {
         if (!v) setSelectedLab(null);
         setIsDeleteDialogOpen(v);

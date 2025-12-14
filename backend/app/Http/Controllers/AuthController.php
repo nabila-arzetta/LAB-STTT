@@ -68,9 +68,11 @@ class AuthController extends Controller
         // Membuat token baru
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        $user->load(['bagian' => function($query) {
-            $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
-        }]);
+        if ($user->kode_bagian) {
+            $user->load(['bagian' => function($query) {
+                $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
+            }]);
+        }
 
         // Mengembalikan response sukses
         return response()->json([
@@ -96,10 +98,13 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         try {
-            // Mengambil data user beserta bagian
-            $user = $request->user()->load(['bagian' => function($query) {
-                $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
-            }]);
+            $user = $request->user();
+
+            if ($user->kode_bagian) {
+                $user->load(['bagian' => function($query) {
+                    $query->select('kode_bagian', 'nama_bagian', 'deskripsi', 'status');
+                }]);
+            }
 
             return response()->json([
                 'id' => $user->id,
@@ -120,6 +125,7 @@ class AuthController extends Controller
             ], 500);
         }
     }
+
 
     // Logout 
     public function logout(Request $request)

@@ -15,11 +15,10 @@ use App\Http\Controllers\Api\LabController;
 use App\Http\Controllers\Api\BagianController;
 use App\Http\Controllers\Api\InventarisController;
 use App\Http\Controllers\Api\PenggunaanBarangController;
-use App\Http\Controllers\Api\PeminjamanController;
 use App\Http\Controllers\Api\StokOpnameController;
-use App\Http\Controllers\Api\LogistikController;
 use App\Http\Controllers\Api\StokController;
 use App\Http\Controllers\Api\PenerimaanLogistikController;
+use App\Http\Controllers\Api\PermintaanLogistikController;
 use App\Http\Controllers\Api\TransferBarangController;
 
 // ===============         PUBLIC ROUTES         ==============
@@ -37,14 +36,16 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // -------------------- DASHBOARD --------------------
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
+    Route::get('/dashboard/item-history', [DashboardController::class, 'itemHistory']);
 
     // -------------------- MASTER DATA --------------------
     Route::apiResource('bagian', BagianController::class);
     Route::apiResource('barang', BarangController::class);
     Route::get('/barang/{kode_barang}/history', [BarangController::class, 'history']);
     Route::get('/master-barang/by-lab/{kode_ruangan}', [MasterBarangController::class, 'byLab']);
+    Route::get('/master-barang/autocomplete', [MasterBarangController::class, 'autocomplete']);
     Route::apiResource('master-barang', MasterBarangController::class);
-    Route::apiResource('logistik', LogistikController::class);
+    
 
     // -------------------- LABORATORIUM --------------------
     Route::get('/labs', [MasterLabController::class, 'index']);
@@ -63,14 +64,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/labs/{id_lab}', [MasterLabController::class, 'update']);
     Route::delete('/labs/{id_lab}', [MasterLabController::class, 'destroy']);
 
-    // (opsional alias, untuk frontend lama yang masih fetch("/api/laboratorium"))
     Route::get('/laboratorium', [LabController::class, 'index']);
 
-    // -------------------- INVENTARIS & STOK --------------------
-    //Route::prefix('stok')->group(function () {
-     //   Route::get('/', [InventarisController::class, 'index']);
-     //   Route::get('/{kodeRuangan}', [InventarisController::class, 'byLab']);
-    //});
 
     Route::prefix('transaksi')->group(function () {
         Route::post('adjust', [InventarisController::class, 'adjust']);
@@ -101,6 +96,14 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/penerimaan-logistik', [PenerimaanLogistikController::class, 'store']);
     Route::put('/penerimaan-logistik/{id}', [PenerimaanLogistikController::class, 'update']);
     Route::delete('/penerimaan-logistik/{id}', [PenerimaanLogistikController::class, 'destroy']);
+
+    // ===================== PERMINTAAN LOGISTIK =====================
+    Route::get('/permintaan-logistik', [PermintaanLogistikController::class, 'index']);
+    Route::post('/permintaan-logistik', [PermintaanLogistikController::class, 'store']); // admin
+    Route::put('/permintaan-logistik/{id}/kirim', [PermintaanLogistikController::class, 'kirim']); // logistik
+    Route::put('/permintaan-logistik/{id}/acc', [PermintaanLogistikController::class, 'acc']); // admin
+    Route::put('/permintaan-logistik/{id}', [PermintaanLogistikController::class, 'update']); //admin
+    Route::delete('/permintaan-logistik/{id}', [PermintaanLogistikController::class, 'destroy']); //admin
 
     // -------------------- STOK OPNAME --------------------
     Route::get('/stok-opname', [StokOpnameController::class, 'index']);

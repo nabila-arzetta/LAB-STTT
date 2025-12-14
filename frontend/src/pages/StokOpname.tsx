@@ -33,9 +33,10 @@ import { id as idLocale } from "date-fns/locale";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
+
 /* -------------------- Types -------------------- */
 type Barang = {
-  kode_barang: string;
+  kode_barang: number;
   nama_barang: string;
   satuan: string | null;
   stok_akhir?: number | null;
@@ -43,7 +44,7 @@ type Barang = {
 };
 
 type OpnameItem = {
-  kode_barang: string;
+  kode_barang: number;
   nama_barang: string;
   stok_sistem: number;
   stok_fisik: number;
@@ -147,6 +148,19 @@ export default function StokOpname() {
   const [selectedYear, setSelectedYear] = useState<string | null>(null);
   const [hasToken, setHasToken] = useState<boolean | null>(null);
 
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const searchedOpname = React.useMemo(() => {
+    if (!searchTerm) return opnameData;
+
+    return opnameData.filter((item) =>
+      item.nama_barang
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
+  }, [opnameData, searchTerm]);
+
+
   const token =
     typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -154,8 +168,13 @@ export default function StokOpname() {
     ? {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        Accept: "application/json",   
       }
-    : { "Content-Type": "application/json" };
+    : {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+
 
   const fetchProfileIfNeeded = async () => {
     if (!isAdminLab) {
@@ -330,7 +349,7 @@ export default function StokOpname() {
         console.error(err);
       } finally {
         setUserLoaded(true);
-        setInitialLoading(false); // ✅ INI YANG PENTING
+        setInitialLoading(false);
       }
     };
 
@@ -494,19 +513,31 @@ export default function StokOpname() {
     // LOAD BARANG HANYA KETIKA UNTUK DIALOG
     const data = await loadBarangForLab(labKode);
 
-    const items: OpnameItem[] = data.map((b: any) => ({
-      kode_barang: b.kode_barang,
-      nama_barang: b.nama_barang,
-      stok_sistem: b.stok_sistem ?? b.stok_akhir ?? 0,
-      stok_fisik: b.stok_sistem ?? b.stok_akhir ?? 0,
-    }));
+    const items: OpnameItem[] = data.map((b: Barang) => {
+      const stok = Number(
+        b.stok_sistem !== null && b.stok_sistem !== undefined
+          ? b.stok_sistem
+          : b.stok_akhir !== null && b.stok_akhir !== undefined
+          ? b.stok_akhir
+          : 0
+      );
+
+      return {
+        kode_barang: Number(b.kode_barang),
+        nama_barang: b.nama_barang ?? "-",
+        stok_sistem: stok >= 0 ? stok : 0,
+        stok_fisik: stok >= 0 ? stok : 0,
+      };
+    });
+
+
 
     setOpnameItems(items);
     setDialogOpen(true);
   };
 
 
-  const handleChangeItem = (kode: string, newStokFisik: number) => {
+  const handleChangeItem = (kode: number, newStokFisik: number) => {
     setOpnameItems((prev) => prev.map((p) => (p.kode_barang === kode ? { ...p, stok_fisik: Number(newStokFisik) } : p)));
   };
 
@@ -653,61 +684,69 @@ export default function StokOpname() {
           onBack={() => setSelectedLabKode(null)}
         />
 
+        {/* HEADER RIWAYAT */}
+          <div className="flex flex-col gap-4">
 
-        {/* FILTER */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
-          <div className="flex items-center gap-2">
-            <Select onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "Januari",
-                  "Februari",
-                  "Maret",
-                  "April",
-                  "Mei",
-                  "Juni",
-                  "Juli",
-                  "Agustus",
-                  "September",
-                  "Oktober",
-                  "November",
-                  "Desember",
-                ].map((bln, i) => (
-                  <SelectItem key={i} value={String(i + 1)}>
-                    {bln}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* JUDUL */}
+            <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
 
-            <Select onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 6 }).map((_, i) => {
-                  const year = new Date().getFullYear() - i;
-                  return (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
+            {/* BARIS ATAS: SEARCH */}
+            <div className="flex items-center justify-between gap-3">
+              <Input
+                placeholder="Cari nama barang..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+
+            {/* BARIS BAWAH: FILTER EXPORT */}
+            <div className="flex flex-wrap items-center gap-2 p-3 border rounded-md bg-muted/40">
+              <p className="text-sm text-muted-foreground mr-2">
+                Filter ini digunakan untuk <b>Download CSV / PDF</b>
+              </p>
+
+              <Select onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "Januari","Februari","Maret","April","Mei","Juni",
+                    "Juli","Agustus","September","Oktober","November","Desember",
+                  ].map((bln, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>
+                      {bln}
                     </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Button onClick={() => handleExportCsv(selectedLabKode)} className="bg-primary text-white">
-              Download CSV
-            </Button>
-            <Button onClick={() => handleExportPdf(selectedLabKode)} className="bg-red-600 text-white">
-              Download PDF
-            </Button>
+              <Select onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+
+              <Button onClick={() => handleExportCsv(selectedLabKode)}>
+                Download CSV
+              </Button>
+
+              <Button onClick={() => handleExportPdf(selectedLabKode)}>
+                Download PDF
+              </Button>
+            </div>
           </div>
-        </div>
 
         {/* TABLE */}
         <div className="overflow-x-auto">
@@ -722,29 +761,34 @@ export default function StokOpname() {
               </tr>
             </thead>
             <tbody>
-              {sortedOpname.length === 0 ? (
+              {searchedOpname.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                    Belum ada data stok opname
+                    {searchTerm
+                      ? "Barang tidak ditemukan."
+                      : "Belum ada data stok opname"}
                   </td>
                 </tr>
               ) : (
-                sortedOpname.map((item) => (
-                  <tr
-                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
-                    className="border-b hover:bg-muted/40"
-                  >
-                    <td className="p-3">
-                      {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}
-                    </td>
-                    <td className="p-3">{item.nama_barang}</td>
-                    <td className="p-3">{item.stok_sistem}</td>
-                    <td className="p-3">{item.stok_fisik}</td>
-                    <td className="p-3">{getSelisihBadge(item.selisih)}</td>
-                  </tr>
-                ))
+                searchedOpname
+                  .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+                  .map((item) => (
+                    <tr
+                      key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                      className="border-b hover:bg-muted/40"
+                    >
+                      <td className="p-3">
+                        {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}
+                      </td>
+                      <td className="p-3">{item.nama_barang}</td>
+                      <td className="p-3">{item.stok_sistem}</td>
+                      <td className="p-3">{item.stok_fisik}</td>
+                      <td className="p-3">{getSelisihBadge(item.selisih)}</td>
+                    </tr>
+                  ))
               )}
             </tbody>
+
           </table>
         </div>
 
@@ -846,52 +890,70 @@ export default function StokOpname() {
           </DialogContent>
         </Dialog>
 
-        {/* RIWAYAT */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
+        {/* HEADER RIWAYAT */}
+          <div className="flex flex-col gap-4">
 
-          <div className="flex items-center gap-2">
-            <Select onValueChange={setSelectedMonth}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Bulan" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  "Januari","Februari","Maret","April","Mei","Juni",
-                  "Juli","Agustus","September","Oktober","November","Desember",
-                ].map((bln, i) => (
-                  <SelectItem key={i} value={String(i + 1)}>
-                    {bln}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* JUDUL */}
+            <h2 className="text-xl font-semibold">Riwayat Stok Opname</h2>
 
-            <Select onValueChange={setSelectedYear}>
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Tahun" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 6 }).map((_, i) => {
-                  const year = new Date().getFullYear() - i;
-                  return (
-                    <SelectItem key={year} value={String(year)}>
-                      {year}
+            {/* BARIS ATAS: SEARCH */}
+            <div className="flex items-center justify-between gap-3">
+              <Input
+                placeholder="Cari nama barang..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-xs"
+              />
+            </div>
+
+            {/* BARIS BAWAH: FILTER EXPORT */}
+            <div className="flex flex-wrap items-center gap-2 p-3 border rounded-md bg-muted/40">
+              <p className="text-sm text-muted-foreground mr-2">
+                Filter ini digunakan untuk <b>Download CSV / PDF</b>
+              </p>
+
+              <Select onValueChange={setSelectedMonth}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Bulan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "Januari","Februari","Maret","April","Mei","Juni",
+                    "Juli","Agustus","September","Oktober","November","Desember",
+                  ].map((bln, i) => (
+                    <SelectItem key={i} value={String(i + 1)}>
+                      {bln}
                     </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <Button onClick={() => handleExportCsv(adminLabKodeRuangan)}>
-              Download CSV
-            </Button>
+              <Select onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Tahun" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return (
+                      <SelectItem key={year} value={String(year)}>
+                        {year}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
 
-            <Button onClick={() => handleExportPdf(adminLabKodeRuangan)}>
-              Download PDF
-            </Button>
+              <Button onClick={() => handleExportCsv(selectedLabKode)}>
+                Download CSV
+              </Button>
+
+              <Button onClick={() => handleExportPdf(selectedLabKode)}>
+                Download PDF
+              </Button>
+            </div>
           </div>
-        </div>
+
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm border rounded-md overflow-hidden">
@@ -905,33 +967,34 @@ export default function StokOpname() {
               </tr>
             </thead>
             <tbody>
-              {sortedOpname.length === 0 ? (
+              {searchedOpname.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="p-6 text-center text-muted-foreground">
-                    Belum ada data.
+                    {searchTerm
+                      ? "Barang tidak ditemukan."
+                      : "Belum ada data stok opname"}
                   </td>
                 </tr>
               ) : (
-                sortedOpname.map((item) => (
-                  <tr
-                    key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
-                    className="border-b hover:bg-muted/40"
-                  >
-                    <td className="p-3">
-                      {format(new Date(item.tanggal), "dd MMMM yyyy", {
-                        locale: idLocale,
-                      })}
-                    </td>
-                    <td className="p-3">{item.nama_barang}</td>
-                    <td className="p-3">{item.stok_sistem}</td>
-                    <td className="p-3">{item.stok_fisik}</td>
-                    <td className="p-3">
-                      {getSelisihBadge(item.selisih)}
-                    </td>
-                  </tr>
-                ))
+                searchedOpname
+                  .sort((a, b) => new Date(b.tanggal).getTime() - new Date(a.tanggal).getTime())
+                  .map((item) => (
+                    <tr
+                      key={`${item.id_opname}-${item.id_detail}-${item.kode_barang}`}
+                      className="border-b hover:bg-muted/40"
+                    >
+                      <td className="p-3">
+                        {format(new Date(item.tanggal), "dd MMMM yyyy", { locale: idLocale })}
+                      </td>
+                      <td className="p-3">{item.nama_barang}</td>
+                      <td className="p-3">{item.stok_sistem}</td>
+                      <td className="p-3">{item.stok_fisik}</td>
+                      <td className="p-3">{getSelisihBadge(item.selisih)}</td>
+                    </tr>
+                  ))
               )}
             </tbody>
+
           </table>
         </div>
 

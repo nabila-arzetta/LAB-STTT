@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { DataTable } from '@/components/ui/DataTable';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -129,6 +128,17 @@ const MasterUsers: React.FC = () => {
     });
     return Array.from(map.values());
   }, [users])
+
+  const filteredUsers = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    if (!q) return groupedUsers;
+
+    return groupedUsers.filter((u: any) =>
+      u.name.toLowerCase().includes(q) ||
+      u.email.toLowerCase().includes(q) ||
+      u.role.toLowerCase().includes(q)
+    );
+  }, [groupedUsers, searchTerm]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -454,16 +464,6 @@ const MasterUsers: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      <DataTable
-        data={groupedUsers}
-        columns={columns}
-        onSearch={setSearchTerm}
-        searchTerm={searchTerm}
-        searchPlaceholder="Cari user..."
-        emptyMessage={loading ? 'Memuat...' : 'Tidak ada user ditemukan'}
-        actions={actions}
-      />
-
       {/* Delete Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={(v) => {
         if (!v) setSelectedUser(null);
@@ -488,6 +488,109 @@ const MasterUsers: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* HEADER TABLE + SEARCH */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6 mb-2">
+        <h2 className="text-lg font-semibold">Daftar User</h2>
+
+        <div className="flex items-center gap-3">
+          <Input
+            type="text"
+            placeholder="Cari user..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-64"
+          />
+
+          <p className="text-sm whitespace-nowrap">
+            Total: <span className="font-bold">{groupedUsers.length}</span>
+            {searchTerm && (
+              <> | Hasil: <span className="font-bold">{filteredUsers.length}</span></>
+            )}
+          </p>
+        </div>
+      </div>
+
+      {/* TABLE */}
+      <div className="overflow-x-auto border rounded-md">
+        <table className="min-w-full text-sm">
+          <thead className="bg-muted">
+            <tr>
+              <th className="p-2 text-left">Nomor</th>
+              <th className="p-2 text-left">Nama</th>
+              <th className="p-2 text-left">Email</th>
+              <th className="p-2 text-left">Role</th>
+              <th className="p-2 text-left">Laboratorium</th>
+              <th className="p-2 text-left">Aksi</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                  Tidak ada user ditemukan
+                </td>
+              </tr>
+            ) : (
+              filteredUsers.map((u: any, idx: number) => (
+                <tr key={u.email} className="border-b hover:bg-muted/30">
+                  <td className="p-2 font-medium">{idx + 1}</td>
+
+                  <td className="p-2">{u.name}</td>
+                  <td className="p-2">{u.email}</td>
+
+                  <td className="p-2">
+                    <Badge>{u.role}</Badge>
+                  </td>
+
+                  <td className="p-2">
+                    {u.labs.length === 1 ? (
+                      u.labs[0]
+                    ) : (
+                      <div className="space-y-1">
+                        {u.labs.map((lab: string) => (
+                          <div key={lab} className="flex justify-between items-center">
+                            <span>{lab}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                              onClick={() => handleDeleteLab(u, lab)}
+                            >
+                              Hapus
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+
+                  <td className="p-2 flex gap-1">
+                    <Button size="sm" variant="outline" onClick={() => handleEdit(u)}>
+                      <Edit className="w-4 h-4" />
+                    </Button>
+
+                    {isSuperAdmin && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          setSelectedUser(u);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
     </div>
   );
 };

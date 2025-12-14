@@ -12,8 +12,8 @@ class PenerimaanLogistikController extends Controller
     {
         $user = $request->user();
 
-        $headers = DB::table('penerimaan_logistik AS pl')
-            ->join('master_lab AS ml', 'ml.kode_ruangan', '=', 'pl.kode_ruangan')
+        $headers = DB::table('penerimaan_logistik as pl')
+            ->join('master_lab as ml', 'ml.kode_ruangan', '=', 'pl.kode_ruangan')
             ->select(
                 'pl.id_penerimaan',
                 'pl.kode_ruangan',
@@ -25,26 +25,37 @@ class PenerimaanLogistikController extends Controller
             ->orderBy('pl.created_at', 'desc');
 
         if ($user->role === 'admin_lab') {
-            $headers->whereIn('pl.kode_ruangan', function($q) use ($user) {
+            $headers->whereIn('pl.kode_ruangan', function ($q) use ($user) {
                 $q->select('kode_ruangan')
-                  ->from('master_lab')
-                  ->where('kode_bagian', $user->kode_bagian);
+                ->from('master_lab')
+                ->where('kode_bagian', $user->kode_bagian);
             });
         }
 
         $headers = $headers->get();
 
         $result = $headers->map(function ($h) {
-            $detail = DB::table('penerimaan_logistik_detail AS d')
-                ->join('master_barang AS mb', 'mb.kode_barang', '=', 'd.kode_barang')
+            $detail = DB::table('penerimaan_logistik_detail as d')
+                ->join('master_barang as mb', 'mb.kode_barang', '=', 'd.kode_barang')
                 ->where('d.id_penerimaan', $h->id_penerimaan)
                 ->select(
                     'd.kode_barang',
+                    'd.quantity',
                     'mb.nama_barang',
-                    'mb.satuan',
-                    'd.quantity'
+                    'mb.satuan'
                 )
-                ->get();
+                ->get()
+                ->map(function ($d) {
+                    return [
+                        'kode_barang' => $d->kode_barang,
+                        'quantity'    => $d->quantity,
+                        'barang' => [
+                            'kode_barang' => $d->kode_barang,
+                            'nama_barang' => $d->nama_barang,
+                            'satuan'      => $d->satuan,
+                        ]
+                    ];
+                });
 
             return [
                 'id_penerimaan' => $h->id_penerimaan,
@@ -52,177 +63,60 @@ class PenerimaanLogistikController extends Controller
                 'nama_lab'      => $h->nama_lab,
                 'tanggal'       => $h->tanggal,
                 'keterangan'    => $h->keterangan,
-                'created_at'    => $h->created_at,
                 'detail'        => $detail,
             ];
         });
 
-        return response()->json([
-            'success' => true,
-            'data' => $result
-        ]);
+        return response()->json(['success' => true, 'data' => $result]);
     }
 
-    // Simpan data penerimaan logistik baru
+
+    // CREATE MANUAL (OPSIONAL)
     public function store(Request $request)
     {
-        $request->validate([
-            'kode_ruangan' => 'required|string',
-            'tanggal'      => 'required|date',
-            'keterangan'   => 'nullable|string',
-            'detail'       => 'required|array|min:1',
-            'detail.*.kode_barang' => 'required|string',
-            'detail.*.quantity'    => 'required|integer|min:1',
-        ]);
-
         DB::beginTransaction();
 
         try {
-            $idPenerimaan = DB::table('penerimaan_logistik')->insertGetId([
+            $id = DB::table('penerimaan_logistik')->insertGetId([
                 'kode_ruangan' => $request->kode_ruangan,
-                'tanggal'      => $request->tanggal,
-                'keterangan'   => $request->keterangan,
-                'created_at'   => now(),
-                'updated_at'   => now(),
+                'tanggal' => $request->tanggal,
+                'keterangan' => $request->keterangan,
+                'created_at' => now(),
+                'updated_at' => now(),
             ]);
 
-            foreach ($request->detail as $item) {
-                DB::table('penerimaan_logistik_detail')->insert([
-                    'id_penerimaan' => $idPenerimaan,
-                    'kode_barang'   => $item['kode_barang'],
-                    'quantity'      => $item['quantity'],
-                    'created_at'    => now(),
-                    'updated_at'    => now(),
-                ]);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Penerimaan logistik berhasil dicatat.',
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-   // Tampilkan detail penerimaan logistik berdasarkan ID
-    public function show($id)
-    {
-        $header = DB::table('penerimaan_logistik')->where('id_penerimaan', $id)->first();
-        if (!$header) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Data tidak ditemukan.'
-            ], 404);
-        }
-
-        $detail = DB::table('penerimaan_logistik_detail AS d')
-            ->join('master_barang AS mb', 'mb.kode_barang', '=', 'd.kode_barang')
-            ->where('d.id_penerimaan', $id)
-            ->select(
-                'd.kode_barang',
-                'mb.nama_barang',
-                'mb.satuan',
-                'd.quantity'
-            )
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'header' => $header,
-                'detail' => $detail
-            ]
-        ]);
-    }
-
-    // Update data penerimaan logistik
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'tanggal' => 'required|date',
-            'keterangan' => 'nullable|string',
-            'detail' => 'required|array|min:1',
-            'detail.*.kode_barang' => 'required|string',
-            'detail.*.quantity' => 'required|integer|min:1',
-        ]);
-
-        DB::beginTransaction();
-
-        try {
-
-            $header = DB::table('penerimaan_logistik')->where('id_penerimaan', $id)->first();
-            if (!$header) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Data tidak ditemukan.'
-                ], 404);
-            }
-
-            DB::table('penerimaan_logistik')
-                ->where('id_penerimaan', $id)
-                ->update([
-                    'tanggal' => $request->tanggal,
-                    'keterangan' => $request->keterangan,
-                    'updated_at' => now(),
-                ]);
-
-            DB::table('penerimaan_logistik_detail')->where('id_penerimaan', $id)->delete();
-
-            foreach ($request->detail as $item) {
+            foreach ($request->detail as $d) {
                 DB::table('penerimaan_logistik_detail')->insert([
                     'id_penerimaan' => $id,
-                    'kode_barang' => $item['kode_barang'],
-                    'quantity' => $item['quantity'],
+                    'kode_barang' => $d['kode_barang'],
+                    'quantity' => $d['quantity'],
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
             }
 
             DB::commit();
+            return response()->json(['success' => true]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Penerimaan logistik berhasil diperbarui.',
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    // Hapus data penerimaan logistik
-    public function destroy($id)
-    {
-        DB::beginTransaction();
-
-        try {
-            DB::table('penerimaan_logistik_detail')->where('id_penerimaan', $id)->delete();
-            DB::table('penerimaan_logistik')->where('id_penerimaan', $id)->delete();
-
-            DB::commit();
-            return response()->json([
-                'success' => true,
-                'message' => 'Penerimaan berhasil dihapus.'
-            ]);
-
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function destroy($id)
+    {
+        DB::table('penerimaan_logistik_detail')
+            ->where('id_penerimaan', $id)
+            ->delete();
+
+        DB::table('penerimaan_logistik')
+            ->where('id_penerimaan', $id)
+            ->delete();
+
+        return response()->json(['success' => true]);
     }
 }

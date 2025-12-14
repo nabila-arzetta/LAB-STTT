@@ -9,7 +9,6 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { DashboardAdmin } from "./pages/DashboardAdmin";
 
-
 import Login from "./pages/Login";
 import DataInventaris from "./pages/DataInventaris";
 
@@ -17,9 +16,11 @@ import { MasterBarang } from "./pages/MasterBarang";
 import MasterUsers from "./pages/MasterUsers";
 import MasterLab from "./pages/MasterLab";
 import PenggunaanBarang from "./pages/PenggunaanBarang";
-import PenerimaanLogistik from "./pages/PenerimaanLogistik";
+import Logistik from "./pages/Logistik";
 import TransferBarang  from "./pages/TransferBarang";
 import StokOpname from "./pages/StokOpname";
+
+import LogistikRole from "./pages/LogistikRole";
 
 import Index from "./pages/Index";
 
@@ -58,8 +59,16 @@ class ErrorBoundary extends React.Component<
 /* Protected wrapper: tunggu auth  */
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+
   if (loading) return <div className="p-6">Loading…</div>;
-  return user ? <>{children}</> : <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  // Role LOGISTIK tidak boleh ke halaman admin
+  if (user.role === "logistik" && window.location.pathname === "/logistik") {
+    return <Navigate to="/logistik-role" replace />;
+  }
+
+  return <>{children}</>;
 };
 
 /* Dashboard selalu admin  */
@@ -182,12 +191,24 @@ const App = () => (
               }
             />
             <Route
-              path="/penerimaan-logistik"
+              path="/logistik"
               element={
                 <ProtectedRoute>
                   <DashboardLayout>
                     <ErrorBoundary>
-                      <PenerimaanLogistik />
+                      <Logistik />
+                    </ErrorBoundary>
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/logistik-role"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <ErrorBoundary>
+                      <LogistikRole /> 
                     </ErrorBoundary>
                   </DashboardLayout>
                 </ProtectedRoute>

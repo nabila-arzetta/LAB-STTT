@@ -98,7 +98,7 @@ class TransferBarangController extends Controller
             'tanggal'             => 'required|date',
             'keterangan'          => 'nullable|string',
             'detail'              => 'required|array|min:1',
-            'detail.*.kode_barang'=> 'required|string',
+            'detail.*.kode_barang' => 'required|integer|exists:master_barang,kode_barang',
             'detail.*.quantity'   => 'required|integer|min:1',
         ]);
 
@@ -156,7 +156,7 @@ class TransferBarangController extends Controller
             'tanggal'             => 'required|date',
             'keterangan'          => 'nullable|string',
             'detail'              => 'required|array|min:1',
-            'detail.*.kode_barang'=> 'required|string',
+            'detail.*.kode_barang' => 'required|integer|exists:master_barang,kode_barang',
             'detail.*.quantity'   => 'required|integer|min:1',
         ]);
 
@@ -218,82 +218,92 @@ class TransferBarangController extends Controller
         }
     }
 
-    // Approve transfer
     public function approve(Request $request, $id)
     {
         $user = $request->user();
         if (!$user || $user->role !== 'admin_lab')
             return response()->json(['message'=>'Unauthorized'],403);
 
-        $transfer = DB::table('transfer_barang')->where('id_transfer',$id)->first();
-        if (!$transfer) return response()->json(['message'=>'Transfer tidak ditemukan'],404);
-
-        $labUser = DB::table('master_lab')->where('kode_bagian',$user->kode_bagian)->first();
-        if (!$labUser || strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan))
-            return response()->json(['message'=>'Anda bukan lab tujuan'],403);
-
-        if ($transfer->status !== 'pending')
-            return response()->json(['message'=>'Transfer sudah diproses'],422);
-
-        $validated = $request->validate([
-            'detail'                 => 'required|array|min:1',
-            'detail.*.kode_barang'   => 'required|string',
-            'detail.*.qty_approved'  => 'required|integer|min:0',
-        ]);
-
         DB::beginTransaction();
         try {
+
+            $transfer = DB::table('transfer_barang')
+                ->where('id_transfer',$id)
+                ->lockForUpdate()
+                ->first();
+
+            if (!$transfer) 
+                return response()->json(['message'=>'Transfer tidak ditemukan'],404);
+
+            $labUser = DB::table('master_lab')
+                ->where('kode_bagian',$user->kode_bagian)
+                ->first();
+
+            if (!$labUser || strtoupper($labUser->kode_ruangan) !== strtoupper($transfer->kode_ruangan_tujuan))
+                return response()->json(['message'=>'Anda bukan lab tujuan'],403);
+
+            if ($transfer->status !== 'pending')
+                return response()->json(['message'=>'Transfer sudah diproses'],422);
+
+            $validated = $request->validate([
+                'detail'                 => 'required|array|min:1',
+                'detail.*.kode_barang'   => 'required|integer|exists:master_barang,kode_barang',
+                'detail.*.qty_approved'  => 'required|integer|min:0',
+            ]);
+
             $allZero = true;
             $allFull = true;
 
             foreach ($validated['detail'] as $d) {
-                $qty = (int)$d['qty_approved'];
-                $kodeBarang = $d['kode_barang'];
 
-                // cek apakah full approve atau sebagian
+                $qty         = (int)$d['qty_approved'];
+                $kodeBarang  = (int)$d['kode_barang'];
+
+                // Qty diminta
                 $requestedQty = DB::table('transfer_barang_detail')
-                    ->where('id_transfer',$id)
-                    ->where('kode_barang',$kodeBarang)
+                    ->where('id_transfer', $id)
+                    ->where('kode_barang', $kodeBarang)
                     ->value('quantity');
 
+                // Ambil nama barang
+                $namaBarang = DB::table('master_barang')
+                    ->where('kode_barang', $kodeBarang)
+                    ->value('nama_barang') ?? 'Barang';
+
+                // Cek stok lab asal
+                $stokSaatIni = DB::table('view_stok_inventaris')
+                    ->where('kode_barang', $kodeBarang)
+                    ->whereRaw('UPPER(kode_ruangan) = ?', [strtoupper($transfer->kode_ruangan_tujuan)])
+                    ->value('stok_akhir');
+
+                $stokSaatIni = (int) ($stokSaatIni ?? 0);
+
+                // ❌ Tidak boleh melebihi permintaan
+                if ($qty > $requestedQty) {
+                    throw new \Exception(
+                        "Jumlah yang disetujui melebihi permintaan untuk barang '{$namaBarang}'."
+                    );
+                }
+
+                // ❌ Cek stok
+                if ($qty > $stokSaatIni) {
+                    throw new \Exception(
+                        "Stok tidak mencukupi untuk barang '{$namaBarang}'. Stok tersedia {$stokSaatIni}, diminta {$qty}."
+                    );
+                }
+
+                // Flag & update
                 if ($qty > 0) $allZero = false;
                 if ($qty < $requestedQty) $allFull = false;
 
-                // update detail
                 DB::table('transfer_barang_detail')
-                    ->where('id_transfer',$id)
-                    ->where('kode_barang',$kodeBarang)
-                    ->update(['qty_approved'=>$qty]);
-
-                if ($qty > 0) {
-                    // kurangi stok lab asal
-                    DB::table('inventaris')
-                        ->where('kode_ruangan',$transfer->kode_ruangan_dari)
-                        ->where('kode_barang',$kodeBarang)
-                        ->decrement('stok_akhir',$qty);
-
-                    // tambah stok lab tujuan
-                    $exists = DB::table('inventaris')
-                        ->where('kode_ruangan',$transfer->kode_ruangan_tujuan)
-                        ->where('kode_barang',$kodeBarang)
-                        ->exists();
-
-                    if ($exists) {
-                        DB::table('inventaris')
-                            ->where('kode_ruangan',$transfer->kode_ruangan_tujuan)
-                            ->where('kode_barang',$kodeBarang)
-                            ->increment('stok_akhir',$qty);
-                    } else {
-                        DB::table('inventaris')->insert([
-                            'kode_ruangan'=>$transfer->kode_ruangan_tujuan,
-                            'kode_barang'=>$kodeBarang,
-                            'stok_akhir'=>$qty
-                        ]);
-                    }
-                }
+                    ->where('id_transfer', $id)
+                    ->where('kode_barang', $kodeBarang)
+                    ->update(['qty_approved' => $qty]);
             }
 
-            // tentukan status
+
+            // ✅ Tentukan status akhir
             if ($allZero) {
                 $status = 'rejected';
             } elseif ($allFull) {
@@ -302,19 +312,28 @@ class TransferBarangController extends Controller
                 $status = 'partial_approved';
             }
 
-            DB::table('transfer_barang')->where('id_transfer',$id)->update([
-                'status'      => $status,
-                'approved_by' => $user->id,
-                'approved_at' => now(),
-                'updated_at'  => now(),
-            ]);
+            DB::table('transfer_barang')
+                ->where('id_transfer',$id)
+                ->update([
+                    'status'      => $status,
+                    'approved_by' => $user->id,
+                    'approved_at' => now(),
+                    'updated_at'  => now(),
+                ]);
 
             DB::commit();
-            return response()->json(['success'=>true,'status'=>$status,'message'=>'Transfer di-ACC']);
+            return response()->json([
+                'success'=>true,
+                'status'=>$status,
+                'message'=>'Transfer berhasil di-ACC'
+            ]);
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['success'=>false,'error'=>$e->getMessage()],500);
+            return response()->json([
+                'success'=>false,
+                'error'=>$e->getMessage()
+            ],500);
         }
     }
 

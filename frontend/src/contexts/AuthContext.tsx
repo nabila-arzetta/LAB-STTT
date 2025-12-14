@@ -115,6 +115,10 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
     localStorage.setItem("user", JSON.stringify(data.user));
     setAuthHeader(data.token);
     setUser(data.user);
+    if (data.user.role === "logistik") {
+      window.location.href = "/logistik-role";
+    }
+
     return data.user;
   };
 

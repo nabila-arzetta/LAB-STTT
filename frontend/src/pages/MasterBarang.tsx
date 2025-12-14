@@ -12,9 +12,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  ArrowLeft,
-  Package,
-  ChevronRight,
   Plus,
   Pencil,
   Trash2,
@@ -29,7 +26,6 @@ type Lab = {
   nama_lab: string;
   kode_bagian?: string | null;
   singkatan?: string | null;
-  status?: "aktif" | "nonaktif" | string;
   jumlah_barang?: number;
 };
 
@@ -40,7 +36,6 @@ type Item = {
   satuan?: string | null;
   kategori?: "alat" | "bahan" | string | null;
   deskripsi?: string | null;
-  status?: "aktif" | "nonaktif" | string;
   [k: string]: any;
 };
 
@@ -53,10 +48,6 @@ const getLabId = (lab: Lab | null | undefined): number | null =>
   lab ? (firstNumber(lab.lab_id) ?? firstNumber(lab.id_lab)) : null;
 
 export const MasterBarang: React.FC = () => {
-  const [labs, setLabs] = useState<Lab[]>([]);
-  const [loadingLabs, setLoadingLabs] = useState(true);
-  const [selectedLabId, setSelectedLabId] = useState<number | null>(null);
-
   const [items, setItems] = useState<Item[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,113 +59,52 @@ export const MasterBarang: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
 
+  const [suggestions, setSuggestions] = useState<Item[]>([]);
+
+  const [autoController, setAutoController] = useState<AbortController | null>(null);
+
+  const [debounceTimer, setDebounceTimer] = useState<any>(null);
+
   const [form, setForm] = useState({
     kode_barang: "",
     nama_barang: "",
     satuan: "",
-    kategori: "alat",
-    status_barang: "aktif" as "aktif" | "nonaktif",
+    kategori: "",
     keterangan: "",
   });
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        setLoadingLabs(true);
-        const res = await api.get<{ data?: Lab[] }>("/bagian", {
-          params: { onlyManage: 1 },
-        });
-
-        if (!active) return;
-
-        const data = (res && (res as any).data) || {};
-        const list: Lab[] = Array.isArray(data.data) ? data.data : data.data ?? data;
-
-        // langsung set tanpa filter
-        setLabs(list ?? []);
-
-        // auto select jika hanya 1 lab
-        if ((list ?? []).length === 1) {
-          const onlyId = getLabId(list[0]);
-          if (onlyId) setSelectedLabId(onlyId);
-        }
-      } catch (err) {
-        console.error("Fetch labs error:", err);
-        setLabs([]);
-        toast.error("Gagal memuat daftar lab");
-      } finally {
-        if (active) setLoadingLabs(false);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  // Ambil user
-  const { user: authUser } = useAuth();
-
-  // Auto pilih lab untuk admin
-  useEffect(() => {
-    if (!authUser) return;
-    if (authUser.role !== "admin_lab") return;
-    if (labs.length === 0) return;
-
-    const labUser = labs.find(
-      (l) =>
-        String(l.kode_bagian).toUpperCase() ===
-        String(authUser.kode_bagian).toUpperCase()
-    );
-
-    if (labUser) {
-      const id = getLabId(labUser);
-      if (id) setSelectedLabId(id); 
-    }
-  }, [labs, authUser]);
-
-  const fetchItems = async (labId: number | null, q?: string): Promise<void> => {
-    if (!labId) return;
+  const fetchItems = async (q?: string) => {
     setLoadingItems(true);
     try {
-      const params: Record<string, string | number> = { id_lab: labId };
-      if (q && q.trim()) params.q = q.trim();
+      const params: any = {};
+      if (q?.trim()) params.q = q;
+
       const res = await api.get("/master-barang", { params });
-      console.log("Fetch items response:", res);
-      
-      const data = (res && (res as any).data) ?? res;
-      const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-      const mapped: Item[] = raw.map((b: any) => ({
+
+      const raw = Array.isArray(res.data?.data)
+        ? res.data.data
+        : [];
+
+      const mapped = raw.map((b: any) => ({
         id: b.id,
         kode_barang: b.kode_barang,
         nama_barang: b.nama_barang,
         satuan: b.satuan ?? "-",
-        kategori: b.kategori ?? b.kategori?.toLowerCase?.() ?? "alat",
-        deskripsi: b.deskripsi ?? b.keterangan ?? "",
-        status: b.status ?? "aktif",
-        ...b,
+        kategori: b.kategori ?? "alat",
+        deskripsi: b.deskripsi ?? "",
       }));
+
       setItems(mapped);
-    } catch (err) {
-      console.error("Fetch items error:", err);
-      toast.error("Gagal memuat barang");
-      setItems([]);
+    } catch {
+      toast.error("Gagal memuat master barang");
     } finally {
       setLoadingItems(false);
     }
   };
 
-  // debounce-ish fetch when selectedLabId or searchTerm changes
   useEffect(() => {
-    if (!selectedLabId) return;
-    const t = setTimeout(() => void fetchItems(selectedLabId, searchTerm), 250);
-    return () => clearTimeout(t);
-  }, [selectedLabId, searchTerm]);
-
-  const selectedLab = useMemo(() => {
-    if (!selectedLabId) return null;
-    return labs.find((l) => getLabId(l) === selectedLabId) ?? null;
-  }, [labs, selectedLabId]);
+    fetchItems();
+  }, []);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm.trim()) return items;
@@ -188,7 +118,6 @@ export const MasterBarang: React.FC = () => {
         i.satuan,
         i.kategori,
         i.deskripsi,
-        i.status,
       ]
         .join(" ")
         .toLowerCase();
@@ -197,10 +126,7 @@ export const MasterBarang: React.FC = () => {
     });
   }, [items, searchTerm]);
 
-  const totalItems = filteredItems.length;
-  const activeItems = filteredItems.filter(
-    (i) => (i.status ?? "").toLowerCase() === "aktif"
-  ).length;
+  const totalItems = items.length;
 
   const columns = [
   { key: "kode_barang", header: "Kode Barang" },
@@ -229,51 +155,23 @@ export const MasterBarang: React.FC = () => {
       </div>
     ),
   },
-  {
-    key: "status",
-    header: "Status",
-    render: (item: Item) =>
-      (item.status ?? "").toLowerCase() === "aktif" ? (
-        <Badge className="pointer-events-none !bg-green-100 !text-green-800 !border-green-200 hover:!bg-green-100 hover:!text-green-800">
-          Aktif
-        </Badge>
-      ) : (
-        <Badge className="pointer-events-none !bg-red-100 !text-red-800 !border-red-200 hover:!bg-red-100 hover:!text-red-800">
-          Non-Aktif
-        </Badge>
-      ),
-  },
 ];
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+
     try {
       const payload = {
-        kode_barang: form.kode_barang,
-        nama_barang: form.nama_barang,
+        nama_barang: form.nama_barang.trim(),
         satuan: form.satuan || "unit",
         kategori: form.kategori,
         deskripsi: form.keterangan || "",
-        kode_ruangan: selectedLab?.kode_bagian ?? "-",
-        id_lab: selectedLabId,
       };
+
       const res = await api.post("/master-barang", payload);
-      
-      const returned = (res && (res as any).data) ?? res;
-      const item = Array.isArray(returned) ? returned[0] : returned.data ?? returned;
-      
-      const newItem: Item = {
-        id: item.id,
-        kode_barang: item.kode_barang,
-        nama_barang: item.nama_barang,
-        satuan: item.satuan ?? form.satuan ?? "-",
-        kategori: item.kategori ?? form.kategori ?? "alat",
-        deskripsi: item.deskripsi ?? item.keterangan ?? form.keterangan ?? "",
-        status: item.status ?? form.status_barang ?? "aktif",
-        ...item,
-      };
-      
+      const newItem = res.data.data;
+
       setItems((prev) => [...prev, newItem]);
       toast.success("Master Barang berhasil dibuat");
 
@@ -281,21 +179,29 @@ export const MasterBarang: React.FC = () => {
         kode_barang: "",
         nama_barang: "",
         satuan: "",
-        kategori: "alat",
-        status_barang: "aktif",
+        kategori: "",
         keterangan: "",
       });
       setIsDialogOpen(false);
-    } catch (err: any) {
+    } 
+    catch (err: any) {
       console.error("Create error:", err);
-      
-      if (err?.response?.data?.message) {
+
+      if (err?.response?.status === 422) {
+        toast.error("Nama barang sudah terdaftar!");
+      } 
+      else if (err?.response?.data?.message) {
         toast.error(err.response.data.message);
-      } else toast.error("Gagal membuat Master Barang");
-    } finally {
+      } 
+      else {
+        toast.error("Gagal membuat Master Barang");
+      }
+    } 
+    finally {
       setSaving(false);
     }
   };
+
 
   // Edit handler 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -308,20 +214,33 @@ export const MasterBarang: React.FC = () => {
         satuan: form.satuan,
         kategori: form.kategori,
         deskripsi: form.keterangan,
-        status: form.status_barang,
       };
       await api.put(`/master-barang/${selectedItem.id}`, payload);
-      
       setItems((prev) =>
         prev.map((i) =>
           i.id === selectedItem.id
-            ? { ...i, nama_barang: form.nama_barang, satuan: form.satuan, kategori: form.kategori, deskripsi: form.keterangan, status: form.status_barang }
+            ? {
+                ...i,
+                nama_barang: payload.nama_barang,
+                satuan: payload.satuan,
+                kategori: payload.kategori,
+                deskripsi: payload.deskripsi,
+              }
             : i
         )
       );
+
       toast.success("Barang berhasil diperbarui");
       setIsEditDialogOpen(false);
       setSelectedItem(null);
+      setForm({
+        kode_barang: "",
+        nama_barang: "",
+        satuan: "",
+        kategori: "",
+        keterangan: "",
+      });
+
     } catch (err) {
       console.error("Edit error:", err);
       toast.error("Gagal memperbarui barang");
@@ -333,17 +252,36 @@ export const MasterBarang: React.FC = () => {
   // Delete handler
   const handleDelete = async () => {
     if (!selectedItem) return;
+
     setSaving(true);
+
     try {
       await api.delete(`/master-barang/${selectedItem.id}`);
+
       setItems((prev) => prev.filter((i) => i.id !== selectedItem.id));
+
       toast.success("Master Barang berhasil dihapus");
+
       setIsDeleteDialogOpen(false);
       setSelectedItem(null);
-    } catch (err) {
+    } 
+    catch (err: any) {
       console.error("Delete error:", err);
-      toast.error("Gagal menghapus barang");
-    } finally {
+
+      if (err?.response?.status === 409) {
+        toast.error(err.response.data.message);
+      } 
+      else if (err?.response?.data?.message) {
+        toast.error(err.response.data.message);
+      } 
+      else {
+        toast.error("Gagal menghapus barang");
+      }
+
+      setIsDeleteDialogOpen(false);
+      setSelectedItem(null);
+    } 
+    finally {
       setSaving(false);
     }
   };
@@ -359,7 +297,7 @@ export const MasterBarang: React.FC = () => {
     }
   };
 
-  if (loadingLabs) {
+  if (loadingItems) {
     return (
       <div className="flex justify-center pt-6">
         <p className="text-muted-foreground animate-pulse">
@@ -371,478 +309,402 @@ export const MasterBarang: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
-      {!selectedLabId ? (
-        <>
-          <div>
-            <h1 className="text-3xl font-bold text-primary">Master Barang</h1>
-            <p className="text-muted-foreground mt-1">
-              Pilih laboratorium untuk melihat daftar barang.
-            </p>
-          </div>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-primary">
+            Master Barang
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Data master barang global
+          </p>
+        </div>
 
-          {labs.length === 0 ? (
-            <div className="text-sm text-muted-foreground">
-              Tidak ada lab aktif yang bisa diakses akun ini.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {labs.map((lab) => {
-                const id = getLabId(lab);
-                return (
-                  <Card
-                    key={id ?? lab.nama_lab}
-                    className="shadow-card hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => id && setSelectedLabId(id)}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold text-primary mb-2">
-                            {lab.nama_lab}
-                          </h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            {lab.singkatan ?? lab.kode_bagian ?? "-"}
-                          </p>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Package className="w-4 h-4" />
-                            <span>
-                              
-                              {typeof lab.jumlah_barang === "number"
-                                ? `${lab.jumlah_barang} barang`
-                                : "— barang"}
-                            </span>
-                          </div>
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              
-              {authUser?.role === "superadmin" && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setSelectedLabId(null)}
-                  className="shrink-0"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                </Button>
-              )}
+        <Dialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
 
+            if (open) {
+              setForm({
+                kode_barang: "",
+                nama_barang: "",
+                satuan: "",
+                kategori: "",
+                keterangan: "",
+              });
+              setSuggestions([]);
+              setSelectedItem(null);
+            } else {
+              if (autoController) autoController.abort();
+              setAutoController(null);
+              setSuggestions([]);
+            }
+          }}
+        >
+
+          <DialogTrigger asChild>
+            <Button className="bg-primary hover:bg-primary-light">
+              <Plus className="w-4 h-4 mr-2" />
+              Tambah Barang
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Tambah Master Barang</DialogTitle>
+            </DialogHeader>
+
+            <form onSubmit={handleCreate} className="space-y-4">
+
+              {/* Nama Barang */}
               <div>
-                <h1 className="text-2xl font-bold text-primary">
-                  {selectedLab?.nama_lab ?? "Lab"}
-                </h1>
-                <p className="text-muted-foreground mt-1">
-                  {selectedLab?.kode_ruangan} — {selectedLab?.kode_bagian}
-                </p>
-              </div>
-            </div>
-
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary-light">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Tambah Barang
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Tambah Master Barang</DialogTitle>
-                </DialogHeader>
-
-                <form onSubmit={handleCreate} className="py-4 space-y-4">
-
-                  {/* Kode Barang */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="kode_barang" className="text-sm font-medium">
-                        Kode Barang
-                      </label>
-                      <input
-                        id="kode_barang"
-                        name="kode_barang"
-                        type="text"
-                        required
-                        value={form.kode_barang}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, kode_barang: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="Misal: BRG-BHS-001"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="nama_barang" className="text-sm font-medium">
-                        Nama Barang
-                      </label>
-                      <input
-                        id="nama_barang"
-                        name="nama_barang"
-                        type="text"
-                        required
-                        value={form.nama_barang}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, nama_barang: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="Misal: Speaker Aktif"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Satuan - Kategori - Status */}
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="satuan" className="text-sm font-medium">
-                        Satuan
-                      </label>
-                      <input
-                        id="satuan"
-                        name="satuan"
-                        type="text"
-                        value={form.satuan}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, satuan: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="Unit, Pcs, Set..."
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="kategori" className="text-sm font-medium">
-                        Kategori
-                      </label>
-                      <select
-                        id="kategori"
-                        name="kategori"
-                        value={form.kategori}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, kategori: e.target.value }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                      >
-                        <option value="alat">Alat</option>
-                        <option value="bahan">Bahan</option>
-                      </select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="status_barang" className="text-sm font-medium">
-                        Status
-                      </label>
-                      <select
-                        id="status_barang"
-                        name="status_barang"
-                        value={form.status_barang}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            status_barang: e.target.value as "aktif" | "nonaktif",
-                          }))
-                        }
-                        className="w-full px-3 py-2 border rounded-lg"
-                      >
-                        <option value="aktif">Aktif</option>
-                        <option value="nonaktif">Non-Aktif</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Keterangan */}
-                  <div className="space-y-2">
-                    <label htmlFor="keterangan" className="text-sm font-medium">
-                      Keterangan
-                    </label>
-                    <textarea
-                      id="keterangan"
-                      name="keterangan"
-                      rows={3}
-                      value={form.keterangan}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, keterangan: e.target.value }))
-                      }
-                      className="w-full px-3 py-2 border rounded-lg resize-none"
-                      placeholder="Contoh: Barang baru diterima dari vendor"
-                    />
-                  </div>
-
-                  {/* Buttons */}
-                  <div className="flex justify-end gap-2 pt-2">
-                    <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
-                      Batal
-                    </Button>
-                    <Button type="submit" disabled={saving} className="bg-primary">
-                      {saving ? "Menyimpan..." : "Simpan Barang"}
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          </div>
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-primary/20 rounded-lg">
-                    <Package className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Barang</p>
-                    <p className="text-2xl font-bold">{loadingItems ? "…" : totalItems}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-card">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-success/20 rounded-lg">
-                    <Package className="w-6 h-6 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Barang Aktif</p>
-                    <p className="text-2xl font-bold">{loadingItems ? "…" : activeItems}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Table */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle>Daftar Master Barang</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DataTable
-                data={filteredItems}
-                columns={columns}
-                actions={(item: Item) => (
-                  <div className="flex items-center gap-1">
-
-                    {/* EDIT BUTTON */}
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      disabled={saving}
-                      title="Edit Barang"
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setForm({
-                          kode_barang: item.kode_barang ?? "",
-                          nama_barang: item.nama_barang ?? "",
-                          satuan: item.satuan ?? "",
-                          kategori: (item.kategori as any) ?? "alat",
-                          status_barang: (item.status as any) ?? "aktif",
-                          keterangan: item.deskripsi ?? item.keterangan ?? "",
-                        });
-                        setIsEditDialogOpen(true);
-                      }}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-
-                    {/* DELETE BUTTON */}
-                    <Button
-                      size="icon"
-                      variant="destructive"
-                      disabled={saving}
-                      title="Hapus Barang"
-                      onClick={() => {
-                        setSelectedItem(item);
-                        setIsDeleteDialogOpen(true);
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-
-                  </div>
-                )}
-                searchPlaceholder="Cari kode, nama, kategori, satuan..."
-                onSearch={setSearchTerm}
-                searchTerm={searchTerm}
-                emptyMessage={
-                  loadingItems
-                    ? "Memuat data…"
-                    : searchTerm
-                    ? "Tidak ada data cocok."
-                    : "Belum ada data master barang"
-                }
-              />
-            </CardContent>
-          </Card>
-
-          {/* Edit Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={(v) => { if (!v) { setSelectedItem(null); } setIsEditDialogOpen(v); }}>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Edit Barang</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
-
-                {/* Nama Barang */}
-                <div className="space-y-2">
-                  <label htmlFor="edit_nama_barang" className="text-sm font-medium">
-                    Nama Barang
-                  </label>
+                <label className="text-sm font-medium">Nama Barang</label>
+                <div className="relative">
                   <input
-                    id="edit_nama_barang"
-                    name="edit_nama_barang"
                     type="text"
-                    required
+                    placeholder="Masukkan nama barang"
                     value={form.nama_barang}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, nama_barang: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border rounded-lg"
-                  />
-                </div>
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm({ ...form, nama_barang: val });
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="edit_satuan" className="text-sm font-medium">
-                      Satuan
-                    </label>
-                    <input
-                      id="edit_satuan"
-                      name="edit_satuan"
-                      type="text"
-                      value={form.satuan}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, satuan: e.target.value }))
+                      if (debounceTimer) {
+                        clearTimeout(debounceTimer);
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
-                    />
-                  </div>
 
-                  <div>
-                    <label htmlFor="edit_kategori" className="text-sm font-medium">
-                      Kategori
-                    </label>
-                    <select
-                      id="edit_kategori"
-                      name="edit_kategori"
-                      value={form.kategori}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, kategori: e.target.value }))
+                      // Minimal 2 huruf biar gak spam request
+                      if (val.trim().length < 2) {
+                        setSuggestions([]);
+                        return;
                       }
-                      className="w-full px-3 py-2 border rounded-lg"
-                    >
-                      <option value="alat">Alat</option>
-                      <option value="bahan">Bahan</option>
-                    </select>
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="edit_keterangan" className="text-sm font-medium">
-                    Keterangan
-                  </label>
-                  <textarea
-                    id="edit_keterangan"
-                    name="edit_keterangan"
-                    rows={3}
-                    value={form.keterangan}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, keterangan: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border rounded-lg resize-none"
+                      const newTimer = setTimeout(async () => {
+                        // Abort request sebelumnya
+                        if (autoController) autoController.abort();
+
+                        const controller = new AbortController();
+                        setAutoController(controller);
+
+                        try {
+                          const res = await api.get("/master-barang/autocomplete", {
+                            params: { q: val },
+                            signal: controller.signal,
+                          });
+
+                          setSuggestions(res.data.data || []);
+                        } catch (err: any) {
+                          if (err.name !== "AbortError") setSuggestions([]);
+                        }
+                      }, 350); // <-- debounce delay
+
+                      setDebounceTimer(newTimer);
+                    }}
+
+                    className="w-full border rounded px-3 py-2"
                   />
+
+                  {suggestions.length > 0 && (
+                    <div className="absolute z-50 bg-white border w-full rounded shadow max-h-40 overflow-y-auto">
+                      {suggestions.map((s) => (
+                        <div
+                          key={s.id}
+                          className="px-3 py-2 text-sm cursor-pointer hover:bg-muted"
+                          onClick={() => {
+                            setForm({ ...form, nama_barang: s.nama_barang });
+                            setSuggestions([]);
+                          }}
+                        >
+                          {s.nama_barang}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <label htmlFor="edit_status_barang" className="text-sm font-medium">
-                    Status
-                  </label>
-                  <select
-                    id="edit_status_barang"
-                    name="edit_status_barang"
-                    value={form.status_barang}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        status_barang: e.target.value as "aktif" | "nonaktif",
-                      }))
-                    }
-                    className="w-full px-3 py-2 border rounded-lg"
-                  >
-                    <option value="aktif">Aktif</option>
-                    <option value="nonaktif">Non-Aktif</option>
-                  </select>
-                </div>
+              {/* Kategori */}
+              <div>
+                <label className="text-sm font-medium">Kategori</label>
+                <select
+                  value={form.kategori}
+                  onChange={(e) =>
+                    setForm({ ...form, kategori: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                  required
+                >
+                  <option value="" disabled>
+                    Pilih kategori
+                  </option>
+                  <option value="alat">Alat</option>
+                  <option value="bahan">Bahan</option>
+                </select>
+              </div>
 
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                    Batal
-                  </Button>
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Menyimpan..." : "Simpan Perubahan"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+              {/* Satuan */}
+              <div>
+                <label className="text-sm font-medium">Satuan</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: unit, pcs, gram"
+                  value={form.satuan}
+                  onChange={(e) =>
+                    setForm({ ...form, satuan: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2"
+                />
+              </div>
 
-          {/* Delete Dialog */}
-          <Dialog
-            open={isDeleteDialogOpen}
-            onOpenChange={(open) => {
-              setIsDeleteDialogOpen(open);
-              if (!open) setSelectedItem(null);
-            }}
-          >
-            <DialogContent className="max-w-sm text-center" aria-describedby={undefined}>
-              <DialogHeader>
-                <DialogTitle>Hapus Barang?</DialogTitle>
-              </DialogHeader>
+              {/* Deskripsi */}
+              <div>
+                <label className="text-sm font-medium">Deskripsi</label>
+                <textarea
+                  rows={3}
+                  placeholder="Masukkan deskripsi barang"
+                  value={form.keterangan}
+                  onChange={(e) =>
+                    setForm({ ...form, keterangan: e.target.value })
+                  }
+                  className="w-full border rounded px-3 py-2 resize-none"
+                />
+              </div>
 
-              <p className="text-sm text-muted-foreground">
-                Apakah kamu yakin ingin menghapus <b>{selectedItem?.nama_barang}</b>?
-              </p>
-
-              <div className="flex justify-center gap-2 mt-4">
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Batal
                 </Button>
-
-                <Button
-                  variant="destructive"
-                  disabled={saving}
-                  onClick={handleDelete}
-                  className="flex items-center gap-2"
-                >
-                  {saving ? (
-                    "Menghapus..."
-                  ) : (
-                    <>
-                      <Trash2 className="w-4 h-4" />
-                      Hapus
-                    </>
-                  )}
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Menyimpan..." : "Simpan"}
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
+              </DialogFooter>
+
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* TABLE */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mt-6 mb-2">
+        <h2 className="text-lg font-semibold">Daftar Master Barang</h2>
+
+        <div className="flex items-center gap-3">
+          {/* SEARCH BAR */}
+          <input
+            type="text"
+            placeholder="Cari barang..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-64 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+
+          <p className="text-sm text-foreground whitespace-nowrap">
+            Total Barang: <span className="font-bold">{items.length}</span>
+            {searchTerm && (
+              <> | Hasil: <span className="font-bold">{filteredItems.length}</span></>
+            )}
+          </p>
+        </div>
+      </div>
+
+          <div className="overflow-x-auto border rounded-md">
+            <table className="min-w-full text-sm">
+              <thead className="bg-muted">
+                <tr>
+                  <th className="p-2 text-left">Nomor</th>
+                  <th className="p-2 text-left">Nama Barang</th>
+                  <th className="p-2 text-left">Kategori</th>
+                  <th className="p-2 text-left">Satuan</th>
+                  <th className="p-2 text-left">Deskripsi</th>
+                  <th className="p-2 text-left">Aksi</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-4 text-center text-muted-foreground">
+                      {searchTerm
+                        ? "Tidak ada barang yang cocok."
+                        : "Belum ada data master barang."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredItems.map((item) => {
+                    // NOMOR BERDASARKAN URUTAN DATA ASLI
+                    const nomor = items.findIndex(i => i.id === item.id) + 1;
+
+                    return (
+                      <tr key={item.id} className="border-b hover:bg-muted/30">
+                        {/* NOMOR TETAP */}
+                        <td className="p-2 font-medium">
+                          {nomor}
+                        </td>
+
+                        <td className="p-2">{item.nama_barang}</td>
+                        <td className="p-2 capitalize">{item.kategori}</td>
+                        <td className="p-2">{item.satuan}</td>
+                        <td className="p-2">{item.deskripsi}</td>
+
+                        {/* EDIT & DELETE — TETAP ADA */}
+                        <td className="p-2 flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={saving}
+                            onClick={() => {
+                              setSelectedItem(item);
+                              setForm({
+                                kode_barang: item.kode_barang ?? "",
+                                nama_barang: item.nama_barang ?? "",
+                                satuan: item.satuan ?? "",
+                                kategori: item.kategori ?? "",
+                                keterangan: item.deskripsi ?? "",
+                              });
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={saving}
+                            onClick={() => {
+                              setSelectedItem(item);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+
+
+            </table>
+          </div>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Master Barang</DialogTitle>
+          </DialogHeader>
+
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+
+            <div>
+              <label className="text-sm font-medium">Nama Barang</label>
+              <input
+                type="text"
+                required
+                value={form.nama_barang}
+                onChange={(e) =>
+                  setForm({ ...form, nama_barang: e.target.value })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Kategori</label>
+              <select
+                value={form.kategori}
+                onChange={(e) =>
+                  setForm({ ...form, kategori: e.target.value })
+                }
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="alat">Alat</option>
+                <option value="bahan">Bahan</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Satuan</label>
+              <input
+                type="text"
+                value={form.satuan}
+                onChange={(e) =>
+                  setForm({ ...form, satuan: e.target.value })
+                }
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Deskripsi</label>
+              <textarea
+                rows={3}
+                value={form.keterangan}
+                onChange={(e) =>
+                  setForm({ ...form, keterangan: e.target.value })
+                }
+                className="w-full border rounded px-3 py-2 resize-none"
+              />
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                Batal
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Menyimpan..." : "Simpan Perubahan"}
+              </Button>
+            </DialogFooter>
+
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DELETE MODAL */}
+        <Dialog
+          open={isDeleteDialogOpen}
+          onOpenChange={(open) => {
+            setIsDeleteDialogOpen(open);
+            if (!open) setSelectedItem(null);
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Hapus Master Barang</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground">
+              Apakah kamu yakin ingin menghapus barang{" "}
+              <span className="font-semibold text-foreground">
+                {selectedItem?.nama_barang}
+              </span>
+              ? Data yang sudah dihapus tidak dapat dikembalikan.
+            </p>
+
+            <DialogFooter className="mt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteDialogOpen(false);
+                  setSelectedItem(null);
+                }}
+              >
+                Batal
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={saving}
+                onClick={handleDelete}
+              >
+                {saving ? "Menghapus..." : "Hapus"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </div>
   );
-};
-
+}
 export default MasterBarang;

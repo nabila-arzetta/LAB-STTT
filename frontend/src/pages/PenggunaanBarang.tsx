@@ -36,7 +36,6 @@ type Barang = {
   id?: number;
   kode_barang: string;
   nama_barang: string;
-  kode_ruangan: string;
   satuan?: string;
 };
 
@@ -97,6 +96,8 @@ export default function PenggunaanBarang() {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Penggunaan | null>(null);
 
+  const [selectedBarang, setSelectedBarang] = useState<Barang | null>(null);
+
   const [form, setForm] = useState<FormState>({
     kode_ruangan: "",
     tanggal: "",
@@ -156,10 +157,7 @@ export default function PenggunaanBarang() {
       // Fetch penggunaan dan barang — beri typing yang sesuai
       const penggunaanRes = await api.get<{ data: Penggunaan[] }>("/penggunaan-barang");
 
-      const barangRes = isAdminLab && userKodeRuangan
-        ? await api.get<{ data: Barang[] }>(`/master-barang/by-lab/${userKodeRuangan}`)
-        : await api.get<{ data: Barang[] }>("/master-barang");
-
+      const barangRes = await api.get<{ data: Barang[] }>("/master-barang");
       const barangData: Barang[] = barangRes?.data?.data ?? [];
       setBarangList(barangData);
 
@@ -203,20 +201,24 @@ export default function PenggunaanBarang() {
     loadData();
   }, [loadData]);
 
-  // FORM HANDLER
   const addBarang = (kode: string) => {
-    if (!kode) return;
+    const barang = barangList.find((b) => b.kode_barang === kode);
+    if (!barang) return;
+
+    setSelectedBarang(barang);
 
     setForm((p) => ({
       ...p,
       detail: [
         {
-          kode_barang: kode,
-          quantity: p.detail[0]?.quantity ?? 1,
+          kode_barang: barang.kode_barang,
+          quantity: 1,
+          barang: barang,
         },
       ],
     }));
   };
+
 
   const removeBarang = (kode: string) =>
     setForm((p) => ({
@@ -238,6 +240,8 @@ export default function PenggunaanBarang() {
       (l) => String(l.kode_bagian) === String(userKodeBagian)
     );
 
+    setSelectedBarang(null); // ✅ RESET UI SELECT
+
     setEditingTarget(null);
     setForm({
       kode_ruangan: lab?.kode_ruangan ?? "",
@@ -245,8 +249,10 @@ export default function PenggunaanBarang() {
       keterangan: "",
       detail: [],
     });
+
     setIsDialogOpen(true);
   };
+
 
   // OPEN EDIT
   const openEditModal = (p: Penggunaan) => {
@@ -279,48 +285,61 @@ export default function PenggunaanBarang() {
 
     try {
       if (editingTarget) {
-        api
-          .put(`/penggunaan-barang/${editingTarget.id_penggunaan}`, {
-            tanggal: form.tanggal,
-            keterangan: form.keterangan,
-            detail: form.detail,
-          })
-          .then(() => loadData())
-          .catch((err) => {
-            toast({
-              title: "Gagal memperbarui",
-              description: err?.response?.data?.message,
-              variant: "destructive",
-            });
-          });
+        // tunggu sampai selesai, kalau error akan masuk ke catch
+        await api.put(`/penggunaan-barang/${editingTarget.id_penggunaan}`, {
+          tanggal: form.tanggal,
+          keterangan: form.keterangan,
+          detail: form.detail,
+        });
       } else {
-        api
-          .post("/penggunaan-barang", {
-            kode_ruangan: form.kode_ruangan,
-            tanggal: form.tanggal,
-            keterangan: form.keterangan,
-            detail: form.detail,
-          })
-          .then(() => loadData())
-          .catch((err) => {
-            toast({
-              title: "Gagal menyimpan",
-              description: err?.response?.data?.message,
-              variant: "destructive",
-            });
-          });
+        await api.post("/penggunaan-barang", {
+          kode_ruangan: form.kode_ruangan,
+          tanggal: form.tanggal,
+          keterangan: form.keterangan,
+          detail: form.detail,
+        });
       }
 
+      // Hanya tutup modal jika berhasil
       setIsDialogOpen(false);
       setEditingTarget(null);
-    } catch (err: any) {
+      await loadData();
+
       toast({
-        title: "Gagal menyimpan",
-        description: err?.response?.data?.message,
+        title: editingTarget ? "Penggunaan diperbarui" : "Penggunaan berhasil diajukan",
+      });
+    } catch (err: any) {
+      // jangan tutup modal — biarkan user memperbaiki
+      const msg = err?.response?.data;
+
+      // kalau backend mengembalikan detail dengan kode_barang & stok_tersedia/diminta
+      if (msg?.detail && (msg.detail.kode_barang || msg.detail.stok_tersedia !== undefined)) {
+        const kode = msg.detail.kode_barang;
+        const stokTersedia = msg.detail.stok_tersedia;
+        const diminta = msg.detail.diminta;
+
+        const barangNama =
+          barangList.find((b) => String(b.kode_barang) === String(kode))?.nama_barang ??
+          kode ??
+          "barang";
+
+        toast({
+          title: "Gagal menyimpan penggunaan",
+          description: `Stok ${barangNama} hanya ${stokTersedia}, tetapi diminta ${diminta}.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // fallback generic message
+      toast({
+        title: "Gagal menyimpan penggunaan",
+        description: msg?.message ?? err?.message ?? "Terjadi kesalahan.",
         variant: "destructive",
       });
     }
   };
+
 
   // DELETE
   const handleDelete = async () => {
@@ -481,10 +500,18 @@ export default function PenggunaanBarang() {
                 {/* BARANG */}
                 <div>
                   <Label htmlFor="formBarangSelect">Tambah Barang</Label>
-                  <Select onValueChange={addBarang}>
-                    <SelectTrigger id="formBarangSelect" name="formBarangSelect">
-                      <SelectValue placeholder="Pilih barang..." />
+                  <Select
+                    value={selectedBarang?.kode_barang}
+                    onValueChange={addBarang}
+                  >
+                    <SelectTrigger>
+                      <SelectValue>
+                        {selectedBarang
+                          ? `${selectedBarang.nama_barang} (${selectedBarang.satuan ?? "unit"})`
+                          : "Pilih barang..."}
+                      </SelectValue>
                     </SelectTrigger>
+
 
                     <SelectContent>
                       {barangList.map((b) => (
@@ -506,7 +533,7 @@ export default function PenggunaanBarang() {
                         <div key={idx} className="flex justify-between items-center border-b py-2">
                           <div>
                             <p className="font-medium">
-                              {barang?.nama_barang || d.kode_barang}
+                              {d.barang?.nama_barang ?? barang?.nama_barang ?? d.kode_barang}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Satuan: {barang?.satuan ?? "unit"}
@@ -589,7 +616,6 @@ export default function PenggunaanBarang() {
             <thead className="bg-muted">
               <tr>
                 <th className="p-2 text-left">Tanggal</th>
-                <th className="p-2 text-left">Kode Barang</th>
                 <th className="p-2 text-left">Nama Barang</th>
                 <th className="p-2 text-left">Qty</th>
                 <th className="p-2 text-left">Satuan</th>
@@ -601,13 +627,23 @@ export default function PenggunaanBarang() {
             <tbody>
               {detailRows.map((row, i) => (
                 <tr key={i} className="border-b hover:bg-muted/30">
+                  
+                  {/* Tanggal */}
                   <td className="p-2">{formatTanggal(row.tanggal)}</td>
-                  <td className="p-2">{row.kode_barang}</td>
+
+                  {/* Nama Barang */}
                   <td className="p-2">{row.nama_barang}</td>
+
+                  {/* Qty */}
                   <td className="p-2">{row.quantity}</td>
+
+                  {/* Satuan */}
                   <td className="p-2">{row.satuan}</td>
+
+                  {/* Keterangan */}
                   <td className="p-2">{row.keterangan}</td>
 
+                  {/* Aksi */}
                   <td className="p-2 flex gap-1">
                     <Button
                       size="sm"
@@ -630,6 +666,7 @@ export default function PenggunaanBarang() {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </td>
+
                 </tr>
               ))}
             </tbody>
@@ -741,7 +778,6 @@ export default function PenggunaanBarang() {
                   <thead className="bg-muted">
                     <tr>
                       <th className="p-2 text-left">Tanggal</th>
-                      <th className="p-2 text-left">Kode Barang</th>
                       <th className="p-2 text-left">Nama Barang</th>
                       <th className="p-2 text-left">Qty</th>
                       <th className="p-2 text-left">Satuan</th>
@@ -753,7 +789,7 @@ export default function PenggunaanBarang() {
                     {superadminSearchedDetailRows.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={6}
+                          colSpan={5}
                           className="p-4 text-center text-muted-foreground"
                         >
                           {search
@@ -763,12 +799,21 @@ export default function PenggunaanBarang() {
                       </tr>
                     ) : (
                       superadminSearchedDetailRows.map((row, idx) => (
-                        <tr key={idx} className="border-b">
+                        <tr key={idx} className="border-b hover:bg-muted/30">
+
+                          {/* Tanggal */}
                           <td className="p-2">{formatTanggal(row.tanggal)}</td>
-                          <td className="p-2">{row.kode_barang}</td>
+
+                          {/* Nama Barang */}
                           <td className="p-2">{row.nama_barang}</td>
+
+                          {/* Qty */}
                           <td className="p-2">{row.quantity}</td>
+
+                          {/* Satuan */}
                           <td className="p-2">{row.satuan}</td>
+
+                          {/* Keterangan */}
                           <td className="p-2">{row.keterangan}</td>
                         </tr>
                       ))

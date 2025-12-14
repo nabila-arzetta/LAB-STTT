@@ -111,10 +111,14 @@ const Login: React.FC = () => {
       }
 
       toast.success("Login berhasil!");
-      const redirect =
-        (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
-
-      navigate(redirect, { replace: true });
+      const currentUser = JSON.parse(localStorage.getItem("user") || "null");
+      if (currentUser?.role === "logistik") {
+        navigate("/logistik-role", { replace: true });
+      } else {
+        const redirect =
+          (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
+        navigate(redirect, { replace: true });
+      }
 
     } catch (err: any) {
       console.error("Login error:", err);

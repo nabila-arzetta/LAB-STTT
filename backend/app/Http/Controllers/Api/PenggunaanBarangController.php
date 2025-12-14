@@ -29,10 +29,10 @@ class PenggunaanBarangController extends Controller
 
         $penggunaan = $query->get();
 
-        // Detail + barang info
         $detail = DB::table('penggunaan_barang_detail')->get();
+
         $barang = DB::table('master_barang')
-            ->select('kode_barang', 'nama_barang', 'satuan', 'kode_ruangan')
+            ->select('kode_barang', 'nama_barang', 'satuan', 'kategori')
             ->get()
             ->keyBy('kode_barang');
 
@@ -50,6 +50,7 @@ class PenggunaanBarangController extends Controller
         return response()->json(['data' => $result]);
     }
 
+
     // CREATE PENGGUNAAN
     public function store(Request $request)
     {
@@ -64,7 +65,7 @@ class PenggunaanBarangController extends Controller
             'tanggal'               => 'required|date',
             'keterangan'            => 'nullable|string',
             'detail'                => 'required|array|size:1',
-            'detail.*.kode_barang'  => 'required|string',
+            'detail.*.kode_barang'  => 'required|integer|exists:master_barang,kode_barang',
             'detail.*.quantity'     => 'required|integer|min:1',
         ]);
 
@@ -91,6 +92,21 @@ class PenggunaanBarangController extends Controller
             ]);
 
             foreach ($validated['detail'] as $item) {
+
+                $stok = $this->getStok($validated['kode_ruangan'], $item['kode_barang']);
+
+                if ($stok < $item['quantity']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Stok tidak mencukupi untuk penggunaan',
+                        'detail' => [
+                            'kode_barang' => $item['kode_barang'],
+                            'stok_tersedia' => $stok,
+                            'diminta' => $item['quantity'],
+                        ]
+                    ], 422);
+                }
+
                 DB::table('penggunaan_barang_detail')->insert([
                     'id_penggunaan' => $id,
                     'kode_barang'   => $item['kode_barang'],
@@ -145,7 +161,7 @@ class PenggunaanBarangController extends Controller
             'tanggal'               => 'required|date',
             'keterangan'            => 'nullable|string',
             'detail'                => 'required|array|min:1',
-            'detail.*.kode_barang'  => 'required|string',
+            'detail.*.kode_barang'  => 'required|integer|exists:master_barang,kode_barang',
             'detail.*.quantity'     => 'required|integer|min:1',
         ]);
 
@@ -165,6 +181,21 @@ class PenggunaanBarangController extends Controller
                 ->delete();
 
             foreach ($validated['detail'] as $item) {
+
+                $stok = $this->getStok($penggunaan->kode_ruangan, $item['kode_barang']);
+
+                if ($stok < $item['quantity']) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'Stok tidak mencukupi untuk penggunaan',
+                        'detail' => [
+                            'kode_barang' => $item['kode_barang'],
+                            'stok_tersedia' => $stok,
+                            'diminta' => $item['quantity'],
+                        ]
+                    ], 422);
+                }
+
                 DB::table('penggunaan_barang_detail')->insert([
                     'id_penggunaan' => $id,
                     'kode_barang'   => $item['kode_barang'],
@@ -223,5 +254,13 @@ class PenggunaanBarangController extends Controller
             ->delete();
 
         return response()->json(['message' => 'Penggunaan dihapus']);
+    }
+
+    private function getStok($kode_ruangan, $kode_barang)
+    {
+        return DB::table('view_stok_inventaris')
+            ->where('kode_ruangan', strtoupper($kode_ruangan))
+            ->where('kode_barang', $kode_barang)
+            ->value('stok_akhir') ?? 0;
     }
 }

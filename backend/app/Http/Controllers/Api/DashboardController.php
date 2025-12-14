@@ -45,52 +45,41 @@ class DashboardController extends Controller
 
         // STAT ADMIN LAB
         if (!$isSuperAdmin) {
-            $barangQuery = DB::table('master_barang')
-                ->when($kodeRuangan, fn ($q) =>
-                    $q->where('kode_ruangan', $kodeRuangan)
-                );
+        $totalBarang = DB::table('master_barang')->count();
 
-            $totalBarang = $barangQuery->count();
+        $barangMasuk = DB::table('penerimaan_logistik')
+            ->where('kode_ruangan', $kodeRuangan)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
 
-            $barangMasuk = DB::table('master_barang')
-                ->when($kodeRuangan, fn ($q) =>
-                    $q->where('kode_ruangan', $kodeRuangan)
-                )
-                ->whereDate('created_at', '>=', now()->startOfMonth())
-                ->count();
+        $barangKeluar = DB::table('penggunaan_barang')
+            ->where('kode_ruangan', $kodeRuangan)
+            ->whereMonth('created_at', now()->month)
+            ->whereYear('created_at', now()->year)
+            ->count();
 
-            $barangKeluar = DB::table('master_barang')
-                ->when($kodeRuangan, fn ($q) =>
-                    $q->where('kode_ruangan', $kodeRuangan)
-                )
-                ->whereDate('updated_at', '>=', now()->startOfMonth())
-                ->count();
-
-            $antrianBarang = DB::table('transfer_barang')
-                ->when($kodeRuangan, function ($q) use ($kodeRuangan) {
-                    $q->whereRaw(
-                        'TRIM(UPPER(kode_ruangan_tujuan)) = TRIM(UPPER(?))',
-                        [$kodeRuangan]
-                    );
-                })
-                ->whereRaw('TRIM(LOWER(status)) = ?', ['pending'])
-                ->count();
-        }
+        $antrianBarang = DB::table('transfer_barang')
+            ->whereRaw(
+                'TRIM(UPPER(kode_ruangan_tujuan)) = TRIM(UPPER(?))',
+                [$kodeRuangan]
+            )
+            ->whereRaw('TRIM(LOWER(status)) = ?', ['pending'])
+            ->count();
+    }
 
         // RECENT TRANSACTION
-        $recent = DB::table('master_barang')
-            ->when(!$isSuperAdmin && $kodeRuangan, fn ($q) =>
-                $q->where('kode_ruangan', $kodeRuangan)
-            )
-            ->orderByDesc('updated_at')
+        $recent = DB::table('penerimaan_logistik')
+            ->where('kode_ruangan', $kodeRuangan)
+            ->orderByDesc('created_at')
             ->limit(6)
             ->get()
             ->map(fn ($row) => [
-                'id'       => $row->id,
-                'type'     => 'update',
-                'item'     => $row->nama_barang,
-                'quantity' => rand(1, 5),
-                'time'     => date('Y-m-d', strtotime($row->updated_at ?? now())),
+                'id'       => $row->id_penerimaan ?? null,   
+                'type'     => 'masuk',
+                'item'     => $row->nama_barang ?? '-',
+                'quantity' => $row->jumlah ?? 0,
+                'time'     => date('Y-m-d', strtotime($row->created_at ?? now())),
                 'status'   => 'selesai',
             ]);
 
@@ -124,5 +113,103 @@ class DashboardController extends Controller
         ], 500);
     }
 }
+
+
+public function itemHistory(Request $request)
+{
+    $user = $request->user();
+
+    $start = $request->start;
+    $end   = $request->end;
+    $kodeBarang = $request->barang;
+    $labFilter  = $request->lab;
+
+    $isSuperAdmin = $user->role === 'superadmin';
+
+    // Ambil lab admin
+    $labUser = DB::table('master_lab')
+        ->where('kode_bagian', $user->kode_bagian)
+        ->first();
+
+    $kodeRuanganAdmin = $labUser
+        ? strtoupper(trim($labUser->kode_ruangan))
+        : null;
+
+    // ================= PENERIMAAN =================
+    $masuk = DB::table('penerimaan_logistik')
+        ->whereBetween('created_at', [$start, $end])
+        ->when($kodeBarang, fn ($q) =>
+            $q->where('kode_barang', $kodeBarang)
+        )
+        ->when(!$isSuperAdmin, fn ($q) =>
+            $q->where('kode_ruangan', $kodeRuanganAdmin)
+        )
+        ->when($isSuperAdmin && $labFilter, fn ($q) =>
+            $q->where('kode_ruangan', $labFilter)
+        )
+        ->selectRaw("
+            created_at as tanggal,
+            nama_barang as barang,
+            'Penerimaan' as aktivitas,
+            jumlah as qty,
+            'Pengadaan' as keterangan,
+            kode_ruangan as lab
+        ");
+
+    // ================= PENGGUNAAN =================
+    $keluar = DB::table('penggunaan_barang')
+        ->whereBetween('created_at', [$start, $end])
+        ->when($kodeBarang, fn ($q) =>
+            $q->where('kode_barang', $kodeBarang)
+        )
+        ->when(!$isSuperAdmin, fn ($q) =>
+            $q->where('kode_ruangan', $kodeRuanganAdmin)
+        )
+        ->when($isSuperAdmin && $labFilter, fn ($q) =>
+            $q->where('kode_ruangan', $labFilter)
+        )
+        ->selectRaw("
+            created_at as tanggal,
+            nama_barang as barang,
+            'Penggunaan' as aktivitas,
+            -jumlah as qty,
+            keterangan,
+            kode_ruangan as lab
+        ");
+
+    // ================= TRANSFER =================
+    $transfer = DB::table('transfer_barang')
+        ->whereBetween('created_at', [$start, $end])
+        ->when($kodeBarang, fn ($q) =>
+            $q->where('kode_barang', $kodeBarang)
+        )
+        ->when(!$isSuperAdmin, fn ($q) =>
+            $q->where('kode_ruangan_tujuan', $kodeRuanganAdmin)
+        )
+        ->when($isSuperAdmin && $labFilter, fn ($q) =>
+            $q->where('kode_ruangan_tujuan', $labFilter)
+        )
+        ->selectRaw("
+            created_at as tanggal,
+            nama_barang as barang,
+            'Transfer Masuk' as aktivitas,
+            quantity as qty,
+            CONCAT('Dari ', kode_ruangan_dari) as keterangan,
+            kode_ruangan_tujuan as lab
+        ");
+
+    // ================= GABUNGKAN =================
+    $data = $masuk
+        ->unionAll($keluar)
+        ->unionAll($transfer)
+        ->orderBy('tanggal', 'asc')
+        ->get();
+
+    return response()->json([
+        'role' => $user->role,
+        'data' => $data
+    ]);
+}
+
 
 }

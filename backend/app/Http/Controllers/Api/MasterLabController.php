@@ -21,17 +21,8 @@ class MasterLabController extends Controller
                 'master_lab.nama_lab',
                 'master_lab.lokasi',
                 'master_lab.status',
-                DB::raw('COUNT(mb.id) as jumlah_barang'),
+                DB::raw('0 as jumlah_barang'), 
             ])
-            ->leftJoin('master_barang as mb', 'mb.kode_ruangan', '=', 'master_lab.kode_ruangan')
-            ->groupBy(
-                'master_lab.id_lab',
-                'master_lab.kode_ruangan',
-                'master_lab.kode_bagian',
-                'master_lab.nama_lab',
-                'master_lab.lokasi',
-                'master_lab.status'
-            )
             ->orderBy('master_lab.nama_lab', 'asc');
 
         if ($onlyManage && $user->role !== 'superadmin') {
@@ -43,13 +34,15 @@ class MasterLabController extends Controller
         $labs = $labs->map(function ($lab) use ($user) {
             $lab->can_manage = (
                 $user->role === 'superadmin' ||
-                ($user->role === 'admin_lab' && strtoupper($user->kode_bagian ?? '') === strtoupper($lab->kode_bagian ?? ''))
+                ($user->role === 'admin_lab' &&
+                strtoupper($user->kode_bagian ?? '') === strtoupper($lab->kode_bagian ?? ''))
             );
             return $lab;
         });
 
         return response()->json(['data' => $labs]);
     }
+
 
     // Opsi lab untuk dropdown, select2, dll.
     public function options()
