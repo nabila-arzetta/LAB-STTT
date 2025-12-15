@@ -25,14 +25,14 @@ const Login: React.FC = () => {
   }, [user]);
 
   // Validasi real-time
-  const validateEmail = (value: string): string => {
+  const validateUsername = (value: string): string => {
     if (!value) {
-      return "Email wajib diisi";
+      return "Username wajib diisi";
     }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(value)) {
-      return "Format email tidak valid";
-    }
+    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // if (!emailRegex.test(value)) {
+      //return "Format email tidak valid";
+    //}
     return "";
   };
 
@@ -40,8 +40,8 @@ const Login: React.FC = () => {
     if (!value) {
       return "Password wajib diisi";
     }
-    if (value.length < 6) {
-      return "Password minimal 6 karakter";
+    if (value.length < 5) {
+      return "Password minimal 5 karakter";
     }
     return "";
   };
@@ -51,7 +51,7 @@ const Login: React.FC = () => {
     const value = e.target.value;
     setEmail(value);
     if (errors.email) {
-      setErrors(prev => ({ ...prev, email: validateEmail(value) }));
+      setErrors(prev => ({ ...prev, email: validateUsername(value) }));
     }
   };
 
@@ -68,14 +68,14 @@ const Login: React.FC = () => {
     e.preventDefault();
 
     // Validasi sebelum submit
-    const emailError = validateEmail(email);
+    const usernameError = validateUsername(email);
     const passwordError = validatePassword(password);
 
-    if (emailError || passwordError) {
-      setErrors({ email: emailError, password: passwordError });
+    if (usernameError || passwordError) {
+      setErrors({ email: usernameError, password: passwordError });
       
-      if (emailError) {
-        toast.error(emailError);
+      if (usernameError) {
+        toast.error(usernameError);
       } else if (passwordError) {
         toast.error(passwordError);
       }
@@ -87,40 +87,20 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-    // LOGIN SUPERADMIN (email)
-    if (email.includes("@")) {
-      await login(email, password); // memakai AuthContext
-      }
-      // LOGIN SIMAK (username)
-      else {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/simak/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            username: email,
-            password: password,
-          }),
-        });
+          await login(email, password); // email = username
 
-        if (!res.ok) throw new Error("Login SIMAK gagal");
+          toast.success("Login berhasil!");
+          const currentUser = JSON.parse(localStorage.getItem("user") || "null");
 
-        const data = await res.json();
+          if (currentUser?.role === "logistik") {
+            navigate("/logistik-role", { replace: true });
+          } else {
+            const redirect =
+              (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
+            navigate(redirect, { replace: true });
+          }
 
-        // Simpan token manual
-        localStorage.setItem("token", data.token);
-      }
-
-      toast.success("Login berhasil!");
-      const currentUser = JSON.parse(localStorage.getItem("user") || "null");
-      if (currentUser?.role === "logistik") {
-        navigate("/logistik-role", { replace: true });
-      } else {
-        const redirect =
-          (location.state as FromState | undefined)?.from?.pathname ?? "/dashboard";
-        navigate(redirect, { replace: true });
-      }
-
-    } catch (err: any) {
+        } catch (err: any) {
       console.error("Login error:", err);
 
       // Handle berbagai jenis error
@@ -304,13 +284,13 @@ const Login: React.FC = () => {
               {/* Email Field */}
               <div className="space-y-1.5 sm:space-y-2">
                 <Label htmlFor="email" className="text-xs sm:text-sm font-semibold text-[#092044]">
-                  Email
+                  Username
                 </Label>
                 <div className="relative">
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="Masukkan email anda"
+                    type="text"
+                    placeholder="Masukkan username anda"
                     value={email}
                     onChange={handleEmailChange}
                     className={`h-10 sm:h-11 md:h-12 bg-white border-2 focus:ring-0 rounded-lg text-[#092044] placeholder:text-[#092044]/40 text-sm sm:text-base transition-all duration-200 ${

@@ -27,7 +27,7 @@ export type User = {
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<User>;
+  login: (username: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   isAdmin: () => boolean;
   getUserLab: () => number | null;
@@ -106,9 +106,9 @@ export const AuthProvider = ({ children }: PropsWithChildren) => {
   }, []);
 
   // Actions
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     const { data } = await api.post<{ token: string; user: User }>("/login", {
-      email,
+      username,
       password,
     });
     localStorage.setItem("token", data.token);

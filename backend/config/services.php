@@ -18,6 +18,10 @@ return [
         'token' => env('POSTMARK_TOKEN'),
     ],
 
+    'simak' => [
+        'base_url' => env('SIMAK_API_BASE'),
+    ],
+
     'resend' => [
         'key' => env('RESEND_KEY'),
     ],

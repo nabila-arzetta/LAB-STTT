@@ -69,10 +69,8 @@ function normalizeLoginResponse(raw: unknown): LoginResponse {
   return { token, user };
 }
 
-export async function loginApi(email: string, password: string) {
-  const { data } = await api.post("/login", { email, password });
-  console.log("[loginApi] response:", data);
-  // … normalizer kamu di sini …
+export async function loginApi(username: string, password: string) {
+  const { data } = await api.post("/login", { username, password });
   return normalizeLoginResponse(data);
 }
 
