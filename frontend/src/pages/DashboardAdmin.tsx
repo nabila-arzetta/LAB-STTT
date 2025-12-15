@@ -17,8 +17,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useDashboardSummary } from "@/hooks/useDashboard";
 import { useAuth } from "@/contexts/AuthContext";
-import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 
 export const DashboardAdmin = () => {
   const { toast } = useToast();
@@ -43,14 +41,6 @@ export const DashboardAdmin = () => {
       });
     }
   }, [isError, toast]);
-
-  
-  const [barang, setBarang] = React.useState("");
-  const [lab, setLab] = React.useState("");
-  const [start, setStart] = React.useState("");
-  const [end, setEnd] = React.useState("");
-  const [history, setHistory] = React.useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = React.useState(false);
 
   if (isLoading) {
     return (
@@ -128,40 +118,10 @@ const menuItems = [
     },
   ];
 
-
-  const loadHistory = async () => {
-    if (!start || !end) {
-      toast({
-        title: "Tanggal belum lengkap",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoadingHistory(true);
-
-    try {
-      const params: any = { start, end };
-
-      if (barang) params.barang = barang;
-      if (isSuperAdmin && lab) params.lab = lab;
-
-      const res = await api.get("/dashboard/item-history", { params });
-      setHistory(res.data.data);
-    } catch (err) {
-      toast({
-        title: "Gagal memuat riwayat",
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
-
-
   return (
     <div className="space-y-6 pb-10">
 
+      {/* ================= HEADER (TETAP) ================= */}
       <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
         <div className="relative z-10">
           {isSuperAdmin ? (
@@ -228,6 +188,7 @@ const menuItems = [
         </div>
       </div>
 
+      {/* ================= SUPERADMIN STATS (TETAP) ================= */}
       {isSuperAdmin && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {superAdminStats.map((stat, idx) => {
@@ -364,70 +325,12 @@ const menuItems = [
                 </p>
               </div>
             </div>
-        </div>
+
+          </div>
         </div>
       )}
-      {/* ================= RIWAYAT PERGERAKAN BARANG ================= */}
-      <div className="bg-white rounded-xl p-6 border shadow-sm space-y-4">
-        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-          <BarChart3 className="w-5 h-5 text-indigo-600" />
-          Riwayat Pergerakan Barang
-        </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <Input
-            placeholder="Kode Barang"
-            value={barang}
-            onChange={(e) => setBarang(e.target.value)}
-          />
-
-          {isSuperAdmin && (
-            <Input
-              placeholder="Kode Lab"
-              value={lab}
-              onChange={(e) => setLab(e.target.value)}
-            />
-          )}
-
-          <Input type="date" value={start} onChange={(e) => setStart(e.target.value)} />
-          <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
-        </div>
-
-        <Button onClick={loadHistory} disabled={loadingHistory}>
-          {loadingHistory ? "Memuat..." : "Tampilkan"}
-        </Button>
-
-        {history.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="p-2 text-left">Tanggal</th>
-                  <th className="p-2 text-left">Barang</th>
-                  <th className="p-2 text-left">Aktivitas</th>
-                  <th className="p-2 text-right">Qty</th>
-                  {isSuperAdmin && <th className="p-2 text-left">Lab</th>}
-                  <th className="p-2 text-left">Keterangan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((row, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="p-2">{row.tanggal}</td>
-                    <td className="p-2">{row.barang}</td>
-                    <td className="p-2">{row.aktivitas}</td>
-                    <td className="p-2 text-right">{row.qty}</td>
-                    {isSuperAdmin && <td className="p-2">{row.lab}</td>}
-                    <td className="p-2">{row.keterangan}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
 
-export default DashboardAdmin; 
+export default DashboardAdmin;
