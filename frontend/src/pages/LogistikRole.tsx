@@ -27,10 +27,21 @@ type Permintaan = {
   detail: DetailPermintaan[];
 };
 
+type Lab = {
+  kode_ruangan: string;
+  nama_lab?: string;
+};
+
 const LogistikRole: React.FC = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [listPermintaan, setListPermintaan] = useState<Permintaan[]>([]);
+
+  const [filterKodeRuangan, setFilterKodeRuangan] = useState("");
+  const [filterTanggalAwal, setFilterTanggalAwal] = useState("");
+  const [filterTanggalAkhir, setFilterTanggalAkhir] = useState("");
+
+  const [labs, setLabs] = useState<Lab[]>([]);
 
   // ============================
   // LOAD DATA PERMINTAAN
@@ -38,8 +49,12 @@ const LogistikRole: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/permintaan-logistik");
-      const data: Permintaan[] = res.data.data ?? [];
+      const [permintaanRes, labRes] = await Promise.all([
+        api.get("/permintaan-logistik"),
+        api.get("/labs/options"),
+      ]);
+
+      const data: Permintaan[] = permintaanRes.data.data ?? [];
 
       setListPermintaan(
         data.sort((a, b) => {
@@ -47,9 +62,12 @@ const LogistikRole: React.FC = () => {
           return order[a.status] - order[b.status];
         })
       );
+
+      setLabs(labRes.data.data ?? []);
+
     } catch (err: any) {
       toast({
-        title: "Gagal memuat permintaan",
+        title: "Gagal memuat data",
         description: err?.response?.data?.message ?? err.message,
         variant: "destructive",
       });
@@ -125,6 +143,38 @@ const LogistikRole: React.FC = () => {
       </p>
     );
 
+    const filteredPermintaan = listPermintaan.filter((p) => {
+      // FILTER LAB
+      const labOk =
+        !filterKodeRuangan ||
+        p.kode_ruangan
+          .toLowerCase()
+          .includes(filterKodeRuangan.toLowerCase());
+
+      // FILTER TANGGAL
+      const dt = new Date(p.tanggal);
+
+      const awalOk =
+        !filterTanggalAwal || dt >= new Date(filterTanggalAwal);
+
+      const akhirOk =
+        !filterTanggalAkhir || dt <= new Date(filterTanggalAkhir);
+
+      return labOk && awalOk && akhirOk;
+    });
+
+    const labOptions = Array.from(
+      new Map(
+        listPermintaan.map((p) => [
+          p.kode_ruangan,
+          {
+            kode_ruangan: p.kode_ruangan,
+            nama_lab: p.nama_lab ?? p.kode_ruangan,
+          },
+        ])
+      ).values()
+    );
+
   return (
     <div className="space-y-6">
       {/* Header Section */}
@@ -137,6 +187,54 @@ const LogistikRole: React.FC = () => {
         </p>
       </div>
 
+      {/* FILTER BAR */}
+      <div className="bg-white rounded-xl p-4 shadow grid grid-cols-1 md:grid-cols-4 gap-4">
+        
+        {/* FILTER LAB */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Lab
+          </label>
+          <select
+            value={filterKodeRuangan}
+            onChange={(e) => setFilterKodeRuangan(e.target.value)}
+            className="w-full border rounded-md p-2 text-sm"
+          >
+            <option value="">Semua Lab</option>
+            {labs.map((lab) => (
+              <option key={lab.kode_ruangan} value={lab.kode_ruangan}>
+                {lab.nama_lab ?? lab.kode_ruangan} ({lab.kode_ruangan})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* TANGGAL AWAL */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Tanggal Awal
+          </label>
+          <Input
+            type="date"
+            value={filterTanggalAwal}
+            onChange={(e) => setFilterTanggalAwal(e.target.value)}
+          />
+        </div>
+
+        {/* TANGGAL AKHIR */}
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">
+            Tanggal Akhir
+          </label>
+          <Input
+            type="date"
+            value={filterTanggalAkhir}
+            onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+          />
+        </div>
+
+      </div>
+
       <div className="space-y-4">
         {listPermintaan.length === 0 && (
           <div className="bg-white rounded-xl p-8 text-center shadow">
@@ -146,7 +244,7 @@ const LogistikRole: React.FC = () => {
           </div>
         )}
 
-        {listPermintaan.map((p) => (
+        {filteredPermintaan.map((p) => (
           <div
             key={p.id_permintaan}
             className={`bg-white text-gray-900 rounded-xl p-5 shadow space-y-3 

@@ -369,7 +369,19 @@ export default function PenggunaanBarang() {
 
   // DATA TABLE
   const detailRows = isAdminLab
-    ? penggunaan.flatMap((p) =>
+  ? penggunaan
+      .filter((p) => {
+        const rowDate = new Date(p.tanggal);
+
+        const awalOk =
+          !filterTanggalAwal || rowDate >= new Date(filterTanggalAwal);
+
+        const akhirOk =
+          !filterTanggalAkhir || rowDate <= new Date(filterTanggalAkhir);
+
+        return awalOk && akhirOk;
+      })
+      .flatMap((p) =>
         p.detail.map((d) => ({
           id_penggunaan: p.id_penggunaan,
           tanggal: p.tanggal,
@@ -381,7 +393,7 @@ export default function PenggunaanBarang() {
           full_penggunaan: p,
         }))
       )
-    : [];
+  : [];
 
   // Untuk superadmin: filter penggunaan berdasarkan lab yang dipilih
   const superadminFilteredPenggunaan =
@@ -607,6 +619,29 @@ export default function PenggunaanBarang() {
             </DialogContent>
           </Dialog>
         )}
+      </div>
+
+      {/* FILTER TANGGAL ADMIN LAB */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <div>
+          <Label htmlFor="filterTanggalAwal">Tanggal Awal</Label>
+          <Input
+            id="filterTanggalAwal"
+            type="date"
+            value={filterTanggalAwal}
+            onChange={(e) => setFilterTanggalAwal(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="filterTanggalAkhir">Tanggal Akhir</Label>
+          <Input
+            id="filterTanggalAkhir"
+            type="date"
+            value={filterTanggalAkhir}
+            onChange={(e) => setFilterTanggalAkhir(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* TABLE ADMIN LAB */}

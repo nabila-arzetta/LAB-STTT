@@ -129,17 +129,17 @@ const Login: React.FC = () => {
 
       // Error 401 - Email tidak terdaftar atau password salah
       if (status === 401) {
-        const message = data?.message;
-        
-        if (message?.toLowerCase().includes("email")) {
-          setErrors(prev => ({ ...prev, email: message }));
-        } else if (message?.toLowerCase().includes("password")) {
-          setErrors(prev => ({ ...prev, password: message }));
-        }
-        
-        toast.error(message || "Email atau password salah.");
+        const message = data?.message || "Username atau password salah";
+
+        setErrors({
+          email: message,
+          password: message,
+        });
+
+        toast.error(message);
         return;
       }
+
 
       // Error 403 - Account inactive or forbidden
       if (status === 403) {
