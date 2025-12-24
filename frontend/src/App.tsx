@@ -12,6 +12,9 @@ import { DashboardAdmin } from "./pages/DashboardAdmin";
 import Login from "./pages/Login";
 import DataInventaris from "./pages/DataInventaris";
 
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+
 import { MasterBarang } from "./pages/MasterBarang";
 import MasterUsers from "./pages/MasterUsers";
 import MasterLab from "./pages/MasterLab";
@@ -107,6 +110,9 @@ const App = () => (
             {/* Public */}
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
 
             {/* Debug */}
             <Route

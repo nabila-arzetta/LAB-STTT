@@ -10,6 +10,9 @@ use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -270,6 +273,264 @@ class AuthController extends Controller
         return 'user';
     }
 
+    /**
+     * Forgot Password - Kirim link reset password
+     */
+    public function forgotPassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'username' => 'required|string',
+            ], [
+                'username.required' => 'Username wajib diisi.',
+            ]);
+
+            $username = $request->username;
+
+            // Rate limiter untuk forgot password
+            $key = 'forgot-password:' . Str::lower($username) . '|' . $request->ip();
+
+            if (RateLimiter::tooManyAttempts($key, 3)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'message' => "Terlalu banyak permintaan. Silakan coba lagi dalam {$seconds} detik."
+                ], 429);
+            }
+
+            // Cek apakah user ada di database lokal
+            $user = User::where('username', $username)->first();
+
+            // Jika user tidak ada di lokal, cek di SIMAK
+            if (!$user) {
+                try {
+                    // Get token SIMAK
+                    $getToken = Http::timeout(30)->post(env('SIMAK_BASE_URL') . '/login', [
+                        'email' => env('SIMAK_CLIENT_EMAIL'),
+                        'password' => env('SIMAK_CLIENT_PASSWORD')
+                    ]);
+
+                    if ($getToken->successful()) {
+                        $tokenData = $getToken->json();
+                        $simakToken = $tokenData['data']['token'] ?? null;
+
+                        if ($simakToken) {
+                            // Cari user di SIMAK (tanpa password)
+                            $simakResponse = Http::timeout(30)
+                                ->withToken($simakToken)
+                                ->get(env('SIMAK_BASE_URL') . '/simak/cek-user', [
+                                    'username' => $username,
+                                ]);
+
+                            if ($simakResponse->successful()) {
+                                $simakData = $simakResponse->json();
+                                if (isset($simakData['status']) && $simakData['status'] === 'success') {
+                                    $simakUsers = $simakData['data'] ?? [];
+                                    
+                                    if (!empty($simakUsers) && is_array($simakUsers)) {
+                                        $simakUser = $simakUsers[0];
+                                        
+                                        // Buat user baru di database lokal dengan password temporary
+                                        $user = User::create([
+                                            'username' => $username,
+                                            'name' => $simakUser['XUSER'] ?? $username,
+                                            'email' => $username . '@stttekstil.ac.id',
+                                            'password' => Hash::make(Str::random(32)), // Password random temporary
+                                            'role' => $this->determineRole($simakUser),
+                                            'kode_bagian' => $simakUser['KODE_BAGIAN'] ?? null,
+                                        ]);
+
+                                        Log::info('User from SIMAK created for password reset', [
+                                            'username' => $username
+                                        ]);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::error('SIMAK check error in forgot password', [
+                        'message' => $e->getMessage()
+                    ]);
+                }
+            }
+
+            // Jika user masih tidak ditemukan
+            if (!$user) {
+                RateLimiter::hit($key, 300); // 5 menit
+                // Untuk keamanan, berikan response yang sama
+                return response()->json([
+                    'message' => 'Jika username terdaftar, link reset password akan dikirim ke email Anda.'
+                ], 200);
+            }
+
+            // Generate reset token
+            $token = Str::random(64);
+
+            // Simpan token ke database password_resets
+            DB::table('password_resets')->updateOrInsert(
+                ['email' => $user->email],
+                [
+                    'email' => $user->email,
+                    'token' => Hash::make($token),
+                    'created_at' => Carbon::now()
+                ]
+            );
+
+            // Kirim email reset password
+            $resetLink = env('FRONTEND_URL', 'http://localhost:3000') . '/reset-password?token=' . $token . '&email=' . urlencode($user->email);
+
+            try {
+                Mail::send('emails.reset-password', [
+                    'name' => $user->name,
+                    'resetLink' => $resetLink
+                ], function ($message) use ($user) {
+                    $message->to($user->email);
+                    $message->subject('Reset Password - ' . env('APP_NAME'));
+                });
+
+                Log::info('Password reset email sent', [
+                    'username' => $username,
+                    'email' => $user->email
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Failed to send reset password email', [
+                    'username' => $username,
+                    'error' => $e->getMessage()
+                ]);
+                
+                return response()->json([
+                    'message' => 'Gagal mengirim email. Silakan hubungi administrator.'
+                ], 500);
+            }
+
+            RateLimiter::hit($key, 300); // 5 menit
+
+            return response()->json([
+                'message' => 'Jika username terdaftar, link reset password akan dikirim ke email Anda.'
+            ], 200);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Forgot password error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan. Silakan coba lagi.'
+            ], 500);
+        }
+    }
+
+    /**
+     * Reset Password - Update password baru
+     */
+    public function resetPassword(Request $request)
+    {
+        try {
+            $request->validate([
+                'token' => 'required|string',
+                'email' => 'required|email',
+                'password' => 'required|string|min:5|confirmed',
+            ], [
+                'token.required' => 'Token reset wajib diisi.',
+                'email.required' => 'Email wajib diisi.',
+                'email.email' => 'Format email tidak valid.',
+                'password.required' => 'Password baru wajib diisi.',
+                'password.min' => 'Password minimal 5 karakter.',
+                'password.confirmed' => 'Konfirmasi password tidak cocok.',
+            ]);
+
+            // Rate limiter
+            $key = 'reset-password:' . $request->ip();
+            if (RateLimiter::tooManyAttempts($key, 5)) {
+                $seconds = RateLimiter::availableIn($key);
+                return response()->json([
+                    'message' => "Terlalu banyak percobaan. Silakan coba lagi dalam {$seconds} detik."
+                ], 429);
+            }
+
+            // Cari token di database
+            $passwordReset = DB::table('password_resets')
+                ->where('email', $request->email)
+                ->first();
+
+            if (!$passwordReset) {
+                RateLimiter::hit($key, 60);
+                return response()->json([
+                    'message' => 'Token reset password tidak valid.'
+                ], 400);
+            }
+
+            // Cek apakah token cocok
+            if (!Hash::check($request->token, $passwordReset->token)) {
+                RateLimiter::hit($key, 60);
+                return response()->json([
+                    'message' => 'Token reset password tidak valid.'
+                ], 400);
+            }
+
+            // Cek apakah token sudah expired (24 jam)
+            if (Carbon::parse($passwordReset->created_at)->addHours(24)->isPast()) {
+                DB::table('password_resets')->where('email', $request->email)->delete();
+                RateLimiter::hit($key, 60);
+                return response()->json([
+                    'message' => 'Token reset password sudah kadaluarsa.'
+                ], 400);
+            }
+
+            // Cari user
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) {
+                RateLimiter::hit($key, 60);
+                return response()->json([
+                    'message' => 'User tidak ditemukan.'
+                ], 404);
+            }
+
+            // Update password (HANYA DI DATABASE LOKAL, TIDAK MENGUBAH PASSWORD DI SIMAK)
+            $user->password = Hash::make($request->password);
+            $user->save();
+
+            // Hapus token reset
+            DB::table('password_resets')->where('email', $request->email)->delete();
+
+            // Hapus semua token akses user (logout dari semua device)
+            $user->tokens()->delete();
+
+            Log::info('Password reset successful', [
+                'username' => $user->username,
+                'email' => $user->email
+            ]);
+
+            RateLimiter::clear($key);
+
+            return response()->json([
+                'message' => 'Password berhasil diubah. Silakan login dengan password baru Anda.'
+            ], 200);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Validasi gagal.',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            Log::error('Reset password error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'message' => 'Terjadi kesalahan. Silakan coba lagi.'
+            ], 500);
+        }
+    }
+
     public function me(Request $request)
     {
         try {
@@ -300,7 +561,6 @@ class AuthController extends Controller
             ], 500);
         }
     }
-
 
     public function logout(Request $request)
     {

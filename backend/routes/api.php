@@ -24,6 +24,8 @@ use App\Http\Controllers\Api\TransferBarangController;
 // ===============         PUBLIC ROUTES         ==============
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // ===============        PROTECTED ROUTES       ==============
 
@@ -33,6 +35,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::apiResource('users', UserController::class);
+
+    // Development only - hapus di production
+    Route::post('/clear-login-attempts', [AuthController::class, 'clearLoginAttempts']);
 
     // -------------------- DASHBOARD --------------------
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);

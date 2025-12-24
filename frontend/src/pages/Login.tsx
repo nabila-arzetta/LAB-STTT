@@ -29,10 +29,6 @@ const Login: React.FC = () => {
     if (!value) {
       return "Username wajib diisi";
     }
-    // const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    // if (!emailRegex.test(value)) {
-      //return "Format email tidak valid";
-    //}
     return "";
   };
 
@@ -308,9 +304,18 @@ const Login: React.FC = () => {
 
               {/* Password Field */}
               <div className="space-y-1.5 sm:space-y-2">
-                <Label htmlFor="password" className="text-xs sm:text-sm font-semibold text-[#092044]">
-                  Password
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password" className="text-xs sm:text-sm font-semibold text-[#092044]">
+                    Password
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-xs sm:text-sm text-[#092044]/70 hover:text-[#092044] font-medium transition-colors hover:underline"
+                  >
+                    Lupa Password?
+                  </button>
+                </div>
                 <div className="relative">
                   <Input
                     id="password"
