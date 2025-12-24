@@ -98,7 +98,7 @@
         
         <div class="footer">
             <p>Email ini dikirim otomatis, mohon tidak membalas email ini.</p>
-            <p>&copy; {{ date('Y') }} {{ env('APP_NAME') }}. All rights reserved.</p>
+            <p>&copy; {{ date('Y') }} {{ env('APP_NAME') }}. </p>
         </div>
     </div>
 </body>

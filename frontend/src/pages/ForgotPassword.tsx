@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Mail, AlertCircle, CheckCircle2, Phone, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import axios from "axios";
@@ -174,12 +174,14 @@ const ForgotPassword: React.FC = () => {
               </div>
 
               <h2 
-                className="text-[21px] xs:text-[23px] sm:text-[26px] md:text-[30px] lg:text-[32px] font-bold leading-tight text-[#092044] mb-1.5 sm:mb-2 tracking-tight px-2"
+                className="text-[19px] xs:text-[21px] sm:text-[24px] md:text-[28px] lg:text-[30px] 
+                          font-bold leading-tight text-[#092044] mb-1.5 sm:mb-2 tracking-tight px-2"
                 style={{ textShadow: "1px 1px 4px rgba(0,0,0,0.1)" }}
               >
                 Lupa Password?
               </h2>
-              <p className="text-xs sm:text-sm md:text-base text-[#092044]/70 font-medium px-4">
+
+              <p className="text-xs sm:text-sm md:text-base text-[#092044]/70 font-medium">
                 {isSuccess 
                   ? "Periksa email Anda untuk link reset password"
                   : "Masukkan username Anda untuk reset password"
@@ -277,8 +279,10 @@ const ForgotPassword: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <Mail className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      Kirim Link Reset Password
+                      <span className="flex items-center justify-center gap-2">
+                        <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                        <span>Kirim Link Reset Password</span>
+                      </span>
                     </>
                   )}
                 </Button>
@@ -311,8 +315,40 @@ const ForgotPassword: React.FC = () => {
       {/* Footer */}
       <footer className="relative z-20 py-4 sm:py-5 mt-auto bg-white shadow-lg">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 md:px-8 lg:px-16">
-          <div className="text-center text-[#092044] text-xs sm:text-sm font-medium">
-            <p>&copy; 2024 Politeknik STTT Bandung. All rights reserved.</p>
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 text-[#092044] text-xs sm:text-sm font-medium">
+            
+            <a 
+              href="tel:+622272580" 
+              className="flex items-center gap-2 transition-colors hover:text-blue-700 group"
+            >
+              <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="text-center sm:text-left">
+                Phone: +62-22-7272580
+              </span>
+            </a>
+
+            <a 
+              href="https://maps.google.com/?q=Jl.+Jakarta+No.+31,+Bandung+40272" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-center transition-colors hover:text-blue-700 group sm:text-left"
+            >
+              <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="max-w-[280px] sm:max-w-none">
+                Jl. Jakarta No. 31, Bandung 40272
+              </span>
+            </a>
+
+            <a 
+              href="mailto:info@stttekstil.ac.id" 
+              className="flex items-center gap-2 transition-colors hover:text-blue-700 group"
+            >
+              <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span className="text-center sm:text-left">
+                Email: info@stttekstil.ac.id
+              </span>
+            </a>
+
           </div>
         </div>
       </footer>
