@@ -1,0 +1,65 @@
+# File: test.http
+# Klik "Send Request" di atas setiap skenario
+
+###
+# ============================================
+# SKENARIO 1: PENERIMAAN BARANG (F1, F6)
+# ============================================
+# @name Skenario1
+POST http://127.0.0.1:8000/api/barang
+Content-Type: application/json
+Accept: application/json
+
+{
+    "master_barang_id": 1, 
+    "id_lab": 1,
+    "jumlah_tersedia": 10,
+    "keterangan": "Penerimaan tes via REST Client"
+}
+
+###
+# ============================================
+# SKENARIO 2: PEMINJAMAN (F3, F6)
+# ============================================
+# @name Skenario2
+POST http://127.0.0.1:8000/api/peminjaman
+Content-Type: application/json
+Accept: application/json
+
+{
+    "user_id": 1,
+    "exemplar_ids": [1, 2, 3],
+    "tujuan": "Tes Praktikum",
+    "tanggal_pinjam": "2025-10-26"
+}
+
+###
+# ============================================
+# SKENARIO 3: PENGEMBALIAN (F3)
+# ============================================
+# @name Skenario3
+# Ganti angka '1' di URL jadi ID peminjaman dari Skenario 2
+POST http://127.0.0.1:8000/api/peminjaman/1/kembalikan
+Content-Type: application/json
+Accept: application/json
+
+{ 
+    "exemplar_id": 1,
+    "kondisi_kembali": "baik", 
+    "tanggal_kembali": "2025-10-27" 
+}
+
+###
+# ============================================
+# SKENARIO 4: ADJUSTMENT (F4, F6)
+# ============================================
+# @name Skenario4
+POST http://127.0.0.1:8000/api/transaksi/adjust
+Content-Type: application/json
+Accept: application/json
+
+{ 
+    "barang_id": 1, 
+    "jumlah_akhir": 6, 
+    "keterangan": "Adjustment tes via REST Client" 
+}
