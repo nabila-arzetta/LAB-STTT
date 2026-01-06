@@ -196,7 +196,7 @@ class AuthController extends Controller
                 'username' => $credentials['username'],
                 'name' => $simakUser['XUSER'] ?? $credentials['username'],
                 'email' => $credentials['username'] . '@stttekstil.ac.id', // Generate email jika tidak ada
-                'password' => Hash::make($credentials['password']), // Simpan password asli (encrypted)
+                'password' => Hash::make($credentials['password']),
                 'role' => $this->determineRole($simakUser), // Tentukan role dari data SIMAK
                 'kode_bagian' => $simakUser['KODE_BAGIAN'] ?? null,
             ]);
